@@ -1,0 +1,274 @@
+# Cut a release of THIS module from its commit history.
+#
+# This module is a separate repository with its own version line. It is released
+# independently of the main repo, and never by a shared version number: the main repo records
+# the version it verified as `tested` in _workflow/config/modules.json, and the real coupling
+# is the machine handoff a consuming module commits under _workflow/config/handoff/. Releasing
+# here changes nothing there, and the main repo's Compatibility workflow is what notices if
+# this module falls behind the machine.
+#
+#   version   checks pass, and semantic-release works out what the next version WOULD be.
+#             Nothing is written. On a pull request into master this is the whole run.
+#   preview   pull requests only: comments the version and notes onto the PR, so the
+#             decision to merge is made knowing exactly what merging publishes.
+#   release   semantic-release writes CHANGELOG.md AND module.json, commits them, pushes
+#             the tag, and publishes the GitHub release.
+#
+# THERE IS NO WIKI JOB, AND THAT IS NOT AN OMISSION. This module has no _docs/ and
+# publishes zero wiki pages by design - the control side does not exist yet. When it
+# lands, this workflow gains the same two things the Beckhoff module's has: a
+# `build_wiki.py --check` gate in `version`, and a `wiki` job that calls its own
+# .github/workflows/wiki.yml with the released tag.
+#
+# WHERE THE VERSION IS WRITTEN. There is no package.json here - this is a TIA repository,
+# not a Node package - so @semantic-release/npm is not in the plugin list and module.json
+# is the version record instead. .releaserc.json's exec step runs
+# `_workflow/tools/set_module_version.py ${nextRelease.version}` during `prepare`, and
+# @semantic-release/git commits module.json with the changelog. module.json is the file
+# the main repo's check_compatibility.py fetches over https, so writing the version there
+# is what makes a release visible to the main repository at all.
+#
+# WHY THE VERSION IS COMPUTED TWICE. The dry run tells the reviewer what merging
+# publishes; the real run does the release. Both read the same commits with the same
+# semantic-release, so they agree.
+#
+# THE BRANCHING MODEL THIS ASSUMES - the same as the main repository's.
+#   master       the release state. Protected: no direct push, pull request and review only.
+#   development  the integration branch. The only branch that may open a PR into master.
+#   <issue>      branched off development, squash-merged back into it.
+#
+#   development -> master MUST BE A MERGE COMMIT, never a squash. semantic-release reads
+#   the individual commit subjects to decide the version and to write the changelog.
+#
+# SECRETS
+#   RELEASE_APP_ID / RELEASE_APP_PRIVATE_KEY  OPTIONAL, and required as soon as master is
+#       protected: semantic-release pushes the version commit and the tag directly to
+#       master, and GITHUB_TOKEN cannot be granted a ruleset bypass where a GitHub App
+#       can. The App needs Contents: read and write, must be installed on this repository,
+#       and must be on the master ruleset's bypass list. With neither secret set the
+#       release falls back to GITHUB_TOKEN, which is enough while master is unprotected.
+#
+# THE FIRST RELEASE WOULD BE 1.0.0 - WHICH IS WRONG FOR THIS MODULE. With no tag in the
+# repository semantic-release publishes 1.0.0 regardless of what module.json reads, and
+# this module is deliberately on a 0.x line: the control side does not exist, and the main
+# repo declares it as `tested: 0.1.0`. PUSH A `v0.1.0` TAG BEFORE THE FIRST RUN and
+# semantic-release bumps from it - 0.1.1 for a fix, 0.2.0 for a feature - instead of
+# announcing a 1.0 that would claim far more than this module currently is.
+#
+#     git tag v0.1.0 && git push origin v0.1.0
+
+name: Release
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Keyed on the ref, so a pull request preview and a release on master never share a group.
+# Two pushes to master do share one, and must not overlap: a release pushes a commit, a
+# tag and a GitHub release, and half of that is worse than none of it. A superseded
+# preview is just noise, so those cancel.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------------ 1. checks + version
+  version:
+    name: Checks and next version
+    # semantic-release's own commit carries [skip ci]. An App-token push is an ordinary
+    # push and does retrigger workflows, unlike a GITHUB_TOKEN one, so this guard is
+    # load-bearing as soon as the App is configured.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    # WRITE, even though this job writes nothing. semantic-release verifies push access
+    # before it analyses anything - `git push --dry-run --no-verify HEAD:master` - and it
+    # does that in dry-run mode too. With contents: read that returns 403 and the run dies
+    # before reporting a version.
+    #
+    # Safe on a pull request: GitHub downgrades GITHUB_TOKEN to read-only for a fork's PR
+    # whatever is declared here. This deliberately stays GITHUB_TOKEN rather than the
+    # release App - a job that checks out pull-request code must never hold a token that
+    # can bypass the master ruleset.
+    permissions:
+      contents: write
+    outputs:
+      published: ${{ steps.dry.outputs.new_release_published }}
+      version: ${{ steps.dry.outputs.new_release_version }}
+      notes: ${{ steps.dry.outputs.new_release_notes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # semantic-release reads the whole history to find the last tag.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # A real gate, and the cheapest one there is. The release writes module.json through
+      # set_module_version.py; if this file is malformed or has lost a member the release
+      # needs, that must fail here - before a tag exists - rather than halfway through
+      # `prepare`, with the changelog already written.
+      - name: Validate module.json
+        run: python _workflow/tools/set_module_version.py --check
+
+      # semantic-release 25 requires node ^22.14 || >=24.10. Pinned rather than left to
+      # the runner image, whose default node has changed before and would fail the job.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Work out the next version
+        id: dry
+        uses: cycjimmy/semantic-release-action@v6
+        with:
+          semantic_version: 25
+          dry_run: true
+          # On a pull request the checkout is the merge ref, which is not a configured
+          # release branch, and semantic-release would refuse to analyse it. On master,
+          # "" keeps .releaserc's own ["master"].
+          branches: ${{ github.event_name == 'pull_request' && github.head_ref || '' }}
+          # Bundled with semantic-release: commit-analyzer, release-notes-generator, npm,
+          # github. These three are not - and exec is what writes module.json.
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/exec
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        env:
+          PUBLISHED: ${{ steps.dry.outputs.new_release_published }}
+          VERSION: ${{ steps.dry.outputs.new_release_version }}
+          NOTES: ${{ steps.dry.outputs.new_release_notes }}
+        run: |
+          if [ "$PUBLISHED" = "true" ]; then
+            { echo "## Next version: \`v$VERSION\`"; echo;
+              echo "\`module.json\` will be rewritten to \`$VERSION\` and committed."; echo;
+              printf '%s\n' "$NOTES"; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            { echo "## No release"; echo;
+              echo "No commit since the last tag triggers a version bump. Only \`feat:\`,";
+              echo "\`fix:\`, \`perf:\`, \`revert:\`, \`refactor:\`, \`docs(README):\` and";
+              echo "\`BREAKING CHANGE:\` produce one."; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ------------------------------------------------------------------ 2. tell the reviewer
+  preview:
+    name: Comment on the pull request
+    needs: version
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment
+        # A pull request from a fork gets a read-only token, so commenting would fail. The
+        # version job's summary is written either way.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          PUBLISHED: ${{ needs.version.outputs.published }}
+          VERSION: ${{ needs.version.outputs.version }}
+          NOTES: ${{ needs.version.outputs.notes }}
+        run: |
+          # Written through a file so the notes are never interpreted by the shell.
+          if [ "$PUBLISHED" = "true" ]; then
+            {
+              printf '**Merging this pull request releases `v%s`.**\n\n' "$VERSION"
+              printf 'It will write `%s` into `module.json`, write `CHANGELOG.md`, tag ' "$VERSION"
+              printf '`v%s`, and publish the GitHub release.\n\n' "$VERSION"
+              printf '<details><summary>Release notes</summary>\n\n'
+              printf '%s\n' "$NOTES"
+              printf '\n</details>\n\n'
+              printf '<sub>Merge with a <b>merge commit</b>, not a squash - squashing collapses '
+              printf 'every commit into one and the changelog loses them.</sub>\n'
+            } > comment.md
+          else
+            {
+              printf '**Merging this pull request releases nothing.**\n\n'
+              printf 'No commit on this branch triggers a version bump. Only `feat:`, `fix:`, '
+              printf '`perf:`, `revert:`, `refactor:`, `docs(README):` and `BREAKING CHANGE:` do.\n'
+            } > comment.md
+          fi
+          # One comment per pull request, edited in place, not a new one on every push.
+          gh pr comment "$PR" --body-file comment.md --edit-last --create-if-none
+
+  # ------------------------------------------------------------------ 3. release
+  release:
+    name: Publish the release
+    needs: version
+    if: github.event_name != 'pull_request' && needs.version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+    permissions:
+      contents: write          # the version commit, the tag, the release
+      issues: write            # @semantic-release/github comments on released issues
+      pull-requests: write     # ... and on the pull requests that closed them
+    env:
+      # Evaluated once, here, because a step-level `if` reading `secrets` directly is not
+      # available in every context. This is the switch between the two token paths below.
+      HAS_RELEASE_APP: ${{ secrets.RELEASE_APP_ID != '' && secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+    steps:
+      # Once master is protected and requires a pull request, the version commit and the
+      # tag cannot be pushed with GITHUB_TOKEN - it cannot be granted a ruleset bypass. A
+      # GitHub App can, so the release runs as one when the App is configured. Until then
+      # this step is skipped and GITHUB_TOKEN is used, which works on an unprotected
+      # master and fails loudly at the push if master is protected without the App.
+      - name: Mint App token
+        id: app-token
+        if: env.HAS_RELEASE_APP == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      # Required: .releaserc.json's exec step runs set_module_version.py during `prepare`.
+      # Without python on the runner the release fails after the changelog is written.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Semantic release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v6
+        with:
+          # Must match the dry run in the `version` job, or the preview can disagree with
+          # the release it previewed. Change both together.
+          semantic_version: 25
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/exec
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
+        run: |
+          {
+            echo "### Released [v$VERSION](${{ github.server_url }}/${{ github.repository }}/releases/tag/v$VERSION)"
+            echo
+            echo "\`module.json\` now reads \`$(python _workflow/tools/set_module_version.py)\`."
+          } >> "$GITHUB_STEP_SUMMARY"

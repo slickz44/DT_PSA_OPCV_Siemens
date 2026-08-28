@@ -22,8 +22,17 @@ and every vendor scene instances the same prefab.
 | main repo `Unity/Assets/Demo_1/Scenes/VC_Demo_1_Siemens_1.unity` | This vendor's scene. Instances `Machine_1.prefab` and adds the Siemens operator panel |
 | main repo `Unity/Assets/StreamingAssets/VC_Demo_1_Siemens_1_Context.json` | Its context export, read by the root build |
 | main repo `Unity/Assets/StreamingAssets/VC_Demo_1_Siemens_1_Project_Tree.xml` | Its device tree — byte-identical to Beckhoff's, because the panel buttons are aggregated and generate no device of their own |
-| `module.json` | This module's identity — name, version, `requiresMain` |
+| `module.json` | This module's identity — name, vendor, version, platform. **`version` is written by the release**, never by hand |
+| `.github/workflows/release.yml` | **This module's own release line.** semantic-release on `master`: previews the version on the PR, then writes `module.json` and `CHANGELOG.md`, tags, and publishes. No wiki job — there is no `_docs/` yet |
+| `.releaserc.json` | The semantic-release plugin list. **No `@semantic-release/npm`** — there is no `package.json` here, so `module.json` is the version record |
+| `_workflow/tools/set_module_version.py` | Writes that version. Called from `.releaserc.json`'s exec step; run it bare to read the current one |
 | `_data/` | Vendor source material — PLC tag exports (`PLCTags_*.xlsx`), the project tree info, notes. **Read only on explicit permission from the user** |
+
+**The first release must be preceded by a `v0.1.0` tag.** With no tag in the repository
+semantic-release publishes **1.0.0** whatever `module.json` reads, and this module is deliberately
+on a 0.x line — the control side does not exist, and the main repo declares it as `tested: 0.1.0`.
+Push `v0.1.0` first and the bumps start from there. The workflow's header says so too, because that
+is where somebody will be standing when it matters.
 
 ### The Siemens operator panel
 
@@ -53,7 +62,7 @@ It needs the same shape every vendor module has, and nothing more:
 
 ```
 Siemens/
-  module.json          already here - bump `version` when the control side lands
+  module.json          already here - `version` is the release's to write, not yours
   CLAUDE.md            tracked one-line stub: @_workflow/CLAUDE.md
   _docs/               TRACKED - what the machine is, on this platform
     01-*.md ...        user documentation - setup, usage, architecture
@@ -64,6 +73,9 @@ Siemens/
     README.md          how the skills chain
     skills/            directory-scoped, appearing as Siemens:<name>
     config/handoff/    the COMMITTED copy of .machine.json. Creating it is the opt-in
+    tools/             already here: set_module_version.py. Add build_wiki.py and
+                       publish_wiki.py beside it when _docs/ appears, and give
+                       release.yml the wiki gate and the wiki job Beckhoff's has
   _private/            GITIGNORED - its own repository
     tools/             a builder that reads _workflow/config/handoff/.machine.json
 ```

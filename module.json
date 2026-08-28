@@ -3,7 +3,6 @@
   "vendor": "Siemens",
   "version": "0.1.0",
   "platform": "Siemens TIA Portal",
-  "requiresMain": ">=1.0.0",
   "repository": "https://github.com/Preliy/DT_PSA_OPCV_Siemens",
   "main": "https://github.com/Preliy/DT_PSA_OPCV",
   "description": "The Siemens port. Work in progress - the Unity scene and its context export are real, the control side does not exist yet.",
