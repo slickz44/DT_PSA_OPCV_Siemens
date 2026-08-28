@@ -1,16 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
   <POU Name="FG_02" Id="{669b5fb7-101c-4b47-8f64-4b0c099808fe}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FG_02
+
 {region generated code}
 VAR_INPUT
-	H_CameraLight : FB_Lamp;
+	P_Camera : FB_Camera;
 END_VAR
 {endregion}]]></Declaration>
     <Implementation>
       <ST><![CDATA[{region generated code}
 	InitRun();
-	H_CameraLight();
+	P_Camera();
 {endregion}
 ]]></ST>
     </Implementation>

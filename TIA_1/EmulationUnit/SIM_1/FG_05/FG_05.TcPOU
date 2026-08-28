@@ -1,11 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
   <POU Name="FG_05" Id="{4d5c652d-69ed-4faa-9522-386134bcffdc}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FG_05
+
 {region generated code}
 VAR_INPUT
+	B_Detect : FB_SensorBinary;
 	B_Part : FB_SensorBinary;
-	P_Camera : FB_Reader;
+	P_Camera : FB_Camera;
 	Y_AxisR : FB_Cylinder;
 	Y_AxisX : FB_Cylinder;
 	Y_AxisZ1 : FB_Cylinder;
@@ -18,6 +20,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[{region generated code}
 	InitRun();
+	B_Detect();
 	B_Part();
 	P_Camera();
 	Y_AxisR();

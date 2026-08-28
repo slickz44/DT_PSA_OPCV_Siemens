@@ -1,12 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
   <POU Name="FG_Transport" Id="{1a228305-b0f2-406a-9e1d-b7bb3646ef17}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FG_Transport
 
 {region generated code}
 VAR_INPUT
-	B_SafetyGate1 : FB_SensorBinary;
-	B_SafetyGate2 : FB_SensorBinary;
 	Index01_B_Detect : FB_SensorBinary;
 	Index01_B_Exit : FB_SensorBinary;
 	Index01_Y_Lift : FB_Cylinder;
@@ -49,15 +47,11 @@ VAR_INPUT
 	Stopper04_Y_Stopper : FB_Cylinder;
 	Transport01_M_Conveyor : FB_Drive;
 	Transport02_M_Conveyor : FB_Drive;
-	Y_Gate1 : FB_Cylinder;
-	Y_Gate2 : FB_Cylinder;
 END_VAR
 {endregion}]]></Declaration>
     <Implementation>
       <ST><![CDATA[{region generated code}
 	InitRun();
-	B_SafetyGate1();
-	B_SafetyGate2();
 	Index01_B_Detect();
 	Index01_B_Exit();
 	Index01_Y_Lift();
@@ -100,8 +94,6 @@ END_VAR
 	Stopper04_Y_Stopper();
 	Transport01_M_Conveyor();
 	Transport02_M_Conveyor();
-	Y_Gate1();
-	Y_Gate2();
 {endregion}
 
 Mapping();
