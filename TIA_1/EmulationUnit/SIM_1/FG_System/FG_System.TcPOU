@@ -52,24 +52,100 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{2f7629fd-0e87-4ebb-9bb1-5dc5c18b76d4}">
       <Implementation>
-        <ST><![CDATA[H_ControlPanel.nControlData.0 := GVL_PLC.Outputs.Q0.1;
-H_ControlPanel.nControlData.2 := GVL_PLC.Outputs.Q0.3;
-H_ControlPanel.nControlData.3 := GVL_PLC.Outputs.Q0.4;
-H_ControlPanel.nControlData.4 := GVL_PLC.Outputs.Q0.5;
-H_ControlPanel.nControlData.5 := GVL_PLC.Outputs.Q0.6;
-H_ControlPanel.nControlData.6 := GVL_PLC.Outputs.Q0.7;
+        <ST><![CDATA[// ============================================================================
+// FG_System twin <-> PLCSIM Advanced process image.
+//
+// Addresses: Siemens/_data/PLCTags_ControlPanel.xlsx.
+//
+// THIS IS THE SIEMENS PANEL, NOT THE BECKHOFF ONE. The two scenes differ in
+// exactly one node: H_ControlPanel here resolves to
+// MAIN.FG_System.H_ControlPanel_Siemens, a PanelSampler over SEVEN controls, of
+// which one - OP MODE - is a SwitchRotary and not a button. The Beckhoff panel is
+// eight PackML buttons and its bit order is a different thing entirely; do not
+// carry a bit layout across from it.
+//
+// Bit order below is the twin's own _components order, read from
+// Unity/Assets/StreamingAssets/VC_Demo_1_Siemens_1_Context.json. It lines up
+// one-for-one with BT1..BT7 in the tag table, which is why no lookup is needed:
+//   bit 0 CONTROL ON/OFF   bit 1 OP MODE (rotary)   bit 2 SINGLE STEP
+//   bit 3 AUTO START       bit 4 AUTO STOP          bit 5 ERROR ACK
+//   bit 6 RESET
+//
+// Reordering that _components list changes the PLC bit assignment. Nothing here
+// checks it for you.
+// ============================================================================
 
-GVL_PLC.Inputs.I0.1 := H_ControlPanel.nStatusData.0;
-GVL_PLC.Inputs.I0.2 := H_ControlPanel.nStatusData.1;
-GVL_PLC.Inputs.I0.3 := H_ControlPanel.nStatusData.2;
-GVL_PLC.Inputs.I0.4 := H_ControlPanel.nStatusData.3;
-GVL_PLC.Inputs.I0.5 := H_ControlPanel.nStatusData.4;
-GVL_PLC.Inputs.I0.6 := H_ControlPanel.nStatusData.5;
-GVL_PLC.Inputs.I0.7 := H_ControlPanel.nStatusData.6;
+// --- H_ControlPanel: the controls -> %I0.1 .. %I0.7 -------------------------
+GVL_PLC.Inputs.I0.1	:= H_ControlPanel.nStatusData.0;	// BT1 CONTROL ON/OFF
+GVL_PLC.Inputs.I0.2	:= H_ControlPanel.nStatusData.1;	// BT2 OP MODE  1=Auto / 0=Hand
+GVL_PLC.Inputs.I0.3	:= H_ControlPanel.nStatusData.2;	// BT3 SINGLE STEP
+GVL_PLC.Inputs.I0.4	:= H_ControlPanel.nStatusData.3;	// BT4 AUTO START
+GVL_PLC.Inputs.I0.5	:= H_ControlPanel.nStatusData.4;	// BT5 AUTO STOP
+GVL_PLC.Inputs.I0.6	:= H_ControlPanel.nStatusData.5;	// BT6 ERROR ACK
+GVL_PLC.Inputs.I0.7	:= H_ControlPanel.nStatusData.6;	// BT7 RESET
 
-H_SignalTower.nControlData.0 := GVL_PLC.Outputs.Q1.2;
-H_SignalTower.nControlData.1 := GVL_PLC.Outputs.Q1.1;
-H_SignalTower.nControlData.2 := GVL_PLC.Outputs.Q1.0;]]></ST>
+// --- H_ControlPanel: the button lamps -> %Q0.1 .. %Q0.7 ---------------------
+// Same bit order as the controls above, so bit n lights the control bit n reads.
+// BIT 1 IS DELIBERATELY ABSENT: OP MODE is a rotary switch and has no lamp, and
+// the tag table has no BT2 light either. That gap is correct, not missing.
+H_ControlPanel.nControlData.0	:= GVL_PLC.Outputs.Q0.1;	// BT1 "Steuerung laeuft" (gruen)
+H_ControlPanel.nControlData.2	:= GVL_PLC.Outputs.Q0.3;	// BT3 "Einzelschritt laeuft" (gruen)
+H_ControlPanel.nControlData.3	:= GVL_PLC.Outputs.Q0.4;	// BT4 "Automatik laeuft" (gruen)
+H_ControlPanel.nControlData.4	:= GVL_PLC.Outputs.Q0.5;	// BT5 "Automatik Stop laeuft" (blau)
+H_ControlPanel.nControlData.5	:= GVL_PLC.Outputs.Q0.6;	// BT6 "Lampe Stoerung" (rot)
+H_ControlPanel.nControlData.6	:= GVL_PLC.Outputs.Q0.7;	// BT7 "Grundstellungsfahrt laeuft" (gruen)
+
+// --- H_SignalTower -> %Q1.1 .. %Q1.3 ----------------------------------------
+// ALL THREE OF THESE ASSIGNMENTS WERE WRONG and are corrected here. The tower is
+// FOUR lamps and its bit order, verified 2026-08-20 against the live
+// PanelSampler._components list and identical in both vendor scenes, is:
+//   bit 0 RED   bit 1 YELLOW   bit 2 BLUE   bit 3 GREEN
+//
+// The previous mapping assumed three lamps with GREEN at bit 2 - the twin's own
+// authored prose said so until it was corrected - and then drove bit 2 from
+// %Q1.0, which is not a tower tag at all but BT8's own button lamp. So RED lit
+// on the yellow tag, YELLOW on the green tag, and the immediate-stop button lamp
+// lit the tower.
+H_SignalTower.nControlData.0	:= GVL_PLC.Outputs.Q1.3;	// RED    "Stoerung"
+H_SignalTower.nControlData.1	:= GVL_PLC.Outputs.Q1.2;	// YELLOW "Einrichten aktiv"
+H_SignalTower.nControlData.3	:= GVL_PLC.Outputs.Q1.1;	// GREEN  "Automatik laeuft"
+
+// BLUE is bit 2 and has NO Siemens tag. The machine's indication contract uses it
+// for Low Material / Material Exhausted - see _docs/reference/state-lamp.md - and
+// FG_System exposes those inputs but never sets them, so an unmapped blue lamp
+// loses nothing today. Add %Q1.4 if the material model ever becomes real.
+
+// TODO: BT8_ImmediateStop %I1.0 / BT8_ImmediateStopLight %Q1.0 HAVE NO TWIN
+// SOURCE. The Siemens panel is seven controls and BT8 is not one of them, so
+// nothing in H_ControlPanel_Siemens can drive it. The only plausible candidates
+// are SS_EStop1 / SS_EStop2, but they are two latching mushrooms and this is one
+// bit on an illuminated PUSH button ("Sofort Halt"), which is a different device
+// doing a different job. THIS IS A QUESTION FOR THE USER, not something to infer:
+// either the panel needs an eighth control authored in the Unity scene, or BT8
+// is a real E-stop channel and the two mushrooms have to be combined - and which
+// one it is decides whether the cell can be stopped at all.
+
+// TODO: NO ADDRESS IN PLCTags_ControlPanel.xlsx for SS_EStop1 / SS_EStop2
+// (FB_Button). One input and one lamp coil each. On the Beckhoff side the twin
+// value is INVERTED on the way in, so the PLC reads a real NC mushroom - TRUE
+// while healthy, FALSE while latched - and FG_System sets Inverted := TRUE to
+// match. Do the same here, and do not drop the NOT without clearing that too:
+//   GVL_PLC.Inputs.I<n>.<b> := NOT SS_EStop1.bValue;
+//   GVL_PLC.Inputs.I<n>.<b> := NOT SS_EStop2.bValue;
+//   SS_EStop1.bEnable := GVL_PLC.Outputs.Q<n>.<b>;   // bEnable IS the lamp
+//   SS_EStop2.bEnable := GVL_PLC.Outputs.Q<n>.<b>;
+
+// TODO: NO ADDRESS IN PLCTags_ControlPanel.xlsx for the six B_SafetyDoor*
+// (FB_Lock). Each needs TWO inputs and ONE output - closed, locked, and the lock
+// coil - because secure means BOTH: closed alone does not make a guard secure.
+// Twelve inputs and six outputs in twin order 11/12/13 then 21/22/23:
+//   GVL_PLC.Inputs.I<n>.<b> := B_SafetyDoor11.bClosed;
+//   GVL_PLC.Inputs.I<n>.<b> := B_SafetyDoor11.bLocked;
+//   B_SafetyDoor11.bLock := GVL_PLC.Outputs.Q<n>.<b>;
+//   ... and so on for 12, 13, 21, 22, 23.
+// Until these exist the cell has no guard monitoring and no way to release a
+// door for maintenance. See _docs/reference/fg-system-safety.md for who owns
+// which half of that decision.]]></ST>
       </Implementation>
     </Action>
   </POU>

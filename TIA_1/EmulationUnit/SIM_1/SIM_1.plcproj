@@ -38,6 +38,9 @@
     <Compile Include="FG_Transport\FG_Transport.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\FB_Camera.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -88,6 +91,7 @@
     <Folder Include="FG_05" />
     <Folder Include="FG_System" />
     <Folder Include="FG_Transport" />
+    <Folder Include="Library" />
     <Folder Include="Sil" />
     <Folder Include="Sil\PLC" />
   </ItemGroup>

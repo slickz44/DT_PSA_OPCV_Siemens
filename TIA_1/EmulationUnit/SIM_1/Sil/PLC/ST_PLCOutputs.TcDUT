@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
-  <DUT Name="ST_PLCOutputs" Id="{becafd5c-cb0b-43ea-b755-87130a177863}">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_PLCOutputs" Id="{9852f7b6-17ec-475c-b6d5-d98d6da1a19e}">
     <Declaration><![CDATA[{attribute 'pack_mode' := '0'}
 TYPE ST_PLCOutputs :
 STRUCT

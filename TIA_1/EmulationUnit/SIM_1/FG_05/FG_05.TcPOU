@@ -53,45 +53,107 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{66c4bd2c-e617-40b7-a0ca-a12b9a98746f}">
       <Implementation>
-        <ST><![CDATA[//Part sensor
-GVL_PLC.Inputs.I500.0 	:= B_Part.bValue;
+        <ST><![CDATA[// ============================================================================
+// FG_05 twin <-> PLCSIM Advanced process image.
+//
+// Addresses: Siemens/_data/PLCTags_FG05.xlsx.
+//
+// Capping. Four double solenoids on the handler, a single-acting stopper on the
+// cap feed, and the bunker - which is an FB_DeviceByte, not a drive, and gained
+// its two control bits in this revision of the table.
+// ============================================================================
 
-//Axis R
-GVL_PLC.Inputs.I501.0 	:= Y_AxisR.bRetracted;
-GVL_PLC.Inputs.I501.1 	:= Y_AxisR.bExtended;
-Y_AxisR.bRetract 	:= GVL_PLC.Outputs.Q501.0;
-Y_AxisR.bExtend 	:= GVL_PLC.Outputs.Q501.1;
+// --- B_Part - cap present at the pick position, on the FEED -----------------
+// NOT the same question as B_Detect below and not interchangeable with it:
+// B_Part is on the feed and reports the NEXT cap as soon as this one is lifted
+// away.
+GVL_PLC.Inputs.I500.0	:= B_Part.bValue;
 
-//Axis X
-GVL_PLC.Inputs.I502.0 	:= Y_AxisX.bRetracted;
-GVL_PLC.Inputs.I502.1 	:= Y_AxisX.bExtended;
-Y_AxisX.bRetract 	:= GVL_PLC.Outputs.Q502.0;
-Y_AxisX.bExtend 	:= GVL_PLC.Outputs.Q502.1;
+// --- Y_AxisR - double solenoid ----------------------------------------------
+GVL_PLC.Inputs.I501.0	:= Y_AxisR.bRetracted;
+GVL_PLC.Inputs.I501.1	:= Y_AxisR.bExtended;
+Y_AxisR.bRetract	:= GVL_PLC.Outputs.Q501.0;
+Y_AxisR.bExtend	:= GVL_PLC.Outputs.Q501.1;
 
-//Axis Z1
-GVL_PLC.Inputs.I503.0 	:= Y_AxisZ1.bRetracted;
-GVL_PLC.Inputs.I503.1 	:= Y_AxisZ1.bExtended;
-Y_AxisZ1.bRetract 	:= GVL_PLC.Outputs.Q503.0;
-Y_AxisZ1.bExtend 	:= GVL_PLC.Outputs.Q503.1;
+// --- Y_AxisX - double solenoid ----------------------------------------------
+GVL_PLC.Inputs.I502.0	:= Y_AxisX.bRetracted;
+GVL_PLC.Inputs.I502.1	:= Y_AxisX.bExtended;
+Y_AxisX.bRetract	:= GVL_PLC.Outputs.Q502.0;
+Y_AxisX.bExtend	:= GVL_PLC.Outputs.Q502.1;
 
-//Axis Z2
-GVL_PLC.Inputs.I504.0 	:= Y_AxisZ2.bRetracted;
-GVL_PLC.Inputs.I504.1 	:= Y_AxisZ2.bExtended;
-Y_AxisZ2.bRetract 	:= GVL_PLC.Outputs.Q504.0;
-Y_AxisZ2.bExtend 	:= GVL_PLC.Outputs.Q504.1;
+// --- Y_AxisZ1 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I503.0	:= Y_AxisZ1.bRetracted;
+GVL_PLC.Inputs.I503.1	:= Y_AxisZ1.bExtended;
+Y_AxisZ1.bRetract	:= GVL_PLC.Outputs.Q503.0;
+Y_AxisZ1.bExtend	:= GVL_PLC.Outputs.Q503.1;
 
-//Caps Source Stopper
-GVL_PLC.Inputs.I505.0 		:= Y_CapsSourceStopper.bRetracted;
-Y_CapsSourceStopper.bExtend 	:= GVL_PLC.Outputs.Q505.1;
+// --- Y_AxisZ2 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I504.0	:= Y_AxisZ2.bRetracted;
+GVL_PLC.Inputs.I504.1	:= Y_AxisZ2.bExtended;
+Y_AxisZ2.bRetract	:= GVL_PLC.Outputs.Q504.0;
+Y_AxisZ2.bExtend	:= GVL_PLC.Outputs.Q504.1;
 
-//Gripper
-GVL_PLC.Inputs.I506.0 	:= Y_Gripper.bRetracted;
-GVL_PLC.Inputs.I506.1 	:= Y_Gripper.bExtended;
-Y_Gripper.bRetract 	:= GVL_PLC.Outputs.Q506.0;
-Y_Gripper.bExtend 	:= GVL_PLC.Outputs.Q506.1;
+// --- Y_CapsSourceStopper - both coils, ONE limit ----------------------------
+//   InHome  %I505.0 "GS = Kaps koennen vereinzelt werden"
+//   HomePos %Q505.0 - NEW in this revision, the missing return coil
+//   WorkPos %Q505.1 "AS = Vereinzelung kann geleert werden"
+//
+// THE TABLE HAS NO Y_CapsSourceStopper_InWork, so bExtended is not published and
+// the control PLC cannot see the stopper fully open - only that it has left the
+// singulating position. Add %I505.1 to close that.
+GVL_PLC.Inputs.I505.0	:= Y_CapsSourceStopper.bRetracted;
+Y_CapsSourceStopper.bRetract	:= GVL_PLC.Outputs.Q505.0;
+Y_CapsSourceStopper.bExtend	:= GVL_PLC.Outputs.Q505.1;
 
-// TODO: no address in xlsx for P_Camera (FB_Reader)
-// TODO: no address in xlsx for Y_CapsSource (FB_DeviceByte)]]></ST>
+// --- Y_Gripper - double solenoid --------------------------------------------
+// .bExtended is jaws closed, on a cap or on nothing. Only B_Detect witnesses a
+// held cap, and B_Detect has no address - see the TODO at the bottom.
+GVL_PLC.Inputs.I506.0	:= Y_Gripper.bRetracted;
+GVL_PLC.Inputs.I506.1	:= Y_Gripper.bExtended;
+Y_Gripper.bRetract	:= GVL_PLC.Outputs.Q506.0;
+Y_Gripper.bExtend	:= GVL_PLC.Outputs.Q506.1;
+
+// --- Y_CapsSource - the bunker, FB_DeviceByte -------------------------------
+// NEW IN THIS REVISION: M_Bunker %Q507.0 and M_Conveyor %Q507.1. This device is
+// an FB_DeviceByte, so the PLC drives BITS OF ITS CONTROL BYTE, not two separate
+// coils - the twin's authored BitLayout fixes which bit is which:
+//   bit 0  the vibration table that feeds the bunker   ("Sortiertopf ein")
+//   bit 1  the short caps conveyor to the pick position ("Linearfoerderer ein")
+//
+// The bunker reports NOTHING back - there are no status bits and no tags for
+// any, which is correct rather than missing. It runs continuously while enabled;
+// it is not started per cap.
+Y_CapsSource.nControlData.0	:= GVL_PLC.Outputs.Q507.0;
+Y_CapsSource.nControlData.1	:= GVL_PLC.Outputs.Q507.1;
+
+// --- P_Camera - the assembly identification read ----------------------------
+// IT READS THE ASSEMBLY ON THE PALLET, NOT THE CAP. The camera is mounted on the
+// feed side but looks across at the pallet, and the key it reads - CapsID - is
+// authored on Assembly Part 1, which carries 810. So the read answers "which cap
+// does this assembly want", and the station passes only on the type it is set up
+// to fit. An empty pallet reads 0 and fails.
+//
+// SET HERE AND NOT IN InitRun BECAUSE Mapping IS THE ONLY ACTION WE OWN - OC
+// Assistant regenerates everything inside the {region generated code} blocks on
+// the next twin regeneration.
+P_Camera.nExpectedData := 810;
+
+// TODO: NO ADDRESS IN PLCTags_FG05.xlsx for P_Camera (FB_Camera).
+// Bit roles are fixed by FB_AbstractCamera and identical in FG_01/02/05:
+//   OUT bit 0 Enable   bit 1 Trigger
+//   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
+//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
+//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
+//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
+//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
+//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
+//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;
+// The read comes FIRST in this station's cycle, so without it FG_05 cannot start.
+
+// TODO: NO ADDRESS IN PLCTags_FG05.xlsx for B_Detect (FB_SensorBinary).
+// Cap held in the gripper's JAWS - the grip witness. FG_05's reset branches on
+// it at Resetting step 0, and the cylinder limit cannot answer the question.
+//   GVL_PLC.Inputs.I<n>.<b> := B_Detect.bValue;]]></ST>
       </Implementation>
     </Action>
   </POU>

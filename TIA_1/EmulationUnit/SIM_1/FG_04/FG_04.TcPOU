@@ -36,11 +36,34 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{edab1274-6099-41da-a10c-63392ff253a8}">
       <Implementation>
-        <ST><![CDATA[//Axis Z
-GVL_PLC.Inputs.I401.1 	:= Y_AxisZ.bExtended;
-Y_AxisZ.bExtend 	:= GVL_PLC.Outputs.Q401.1;
+        <ST><![CDATA[// ============================================================================
+// FG_04 twin <-> PLCSIM Advanced process image.
+//
+// Addresses: Siemens/_data/PLCTags_FG04.xlsx.
+//
+// The press and its verdict. Y_AxisZ is a double solenoid so that an abort
+// mid-stroke leaves it where it is instead of letting a spring drive it further
+// into the part - which is why the retract coil below has to be driven and not
+// left to a spring that does not exist.
+// ============================================================================
 
-// TODO: no address in xlsx for B_NIO (FB_SensorBinary)]]></ST>
+// --- Y_AxisZ - double solenoid, both coils and both limits ------------------
+// InHome %I401.0 and HomePos %Q401.0 are BOTH NEW in this revision of the table.
+// Before them the press had no way back: it reported only the bottom limit and
+// the retract coil did not exist, so once bExtend dropped the twin cylinder held
+// its extended position for ever.
+GVL_PLC.Inputs.I401.0	:= Y_AxisZ.bRetracted;
+GVL_PLC.Inputs.I401.1	:= Y_AxisZ.bExtended;
+Y_AxisZ.bRetract	:= GVL_PLC.Outputs.Q401.0;
+Y_AxisZ.bExtend	:= GVL_PLC.Outputs.Q401.1;
+
+// TODO: NO ADDRESS IN PLCTags_FG04.xlsx for B_NIO (FB_SensorBinary).
+// B_NIO IS NOT A SENSOR READING, it is a VERDICT: the twin's seating sensor is
+// not a PLC symbol at all - it feeds PartPressDetector inside Unity, which
+// publishes the conclusion here as one bit. Active means the press bottomed with
+// nothing correctly seated, and it is only meaningful at the bottom limit with
+// the hold expired. Without it FG_04 presses and never judges.
+//   GVL_PLC.Inputs.I<n>.<b> := B_NIO.bValue;]]></ST>
       </Implementation>
     </Action>
   </POU>

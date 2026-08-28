@@ -51,23 +51,107 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{b135af46-5e51-4902-aa55-378231cbb916}">
       <Implementation>
-        <ST><![CDATA[//Gripper
-GVL_PLC.Inputs.I101.0 := Y_Gripper.bRetracted;
-GVL_PLC.Inputs.I101.1 := Y_Gripper.bExtended;
-Y_Gripper.bExtend 	:= GVL_PLC.Outputs.Q101.1;
+        <ST><![CDATA[// ============================================================================
+// FG_01 twin <-> PLCSIM Advanced process image.
+//
+// Addresses are the Siemens PLC tag tables in Siemens/_data/:
+//   PLCTags_FG01.xlsx          the station's own cylinders
+//   PLCTags_FG_Transport.xlsx  the two gates - see below
+//
+// GVL_PLC.Inputs / .Outputs are the PLC's process image seen from the twin side,
+// so direction is baked into which side of the assignment the GVL sits on:
+//   twin status -> GVL_PLC.Inputs    the PLC reads it
+//   GVL_PLC.Outputs -> twin control  the PLC drives it
+//
+// THE GATES ARE MAPPED HERE, NOT IN FG_Transport. Y_Gate1 and Y_Gate2 moved into
+// FG_01 with the twin and are members of THIS function block; the Siemens tag
+// table still files their addresses under FG_TS_Gate_*, because a tag table is
+// named for the PLC unit that owns the address, not for the twin group that owns
+// the device. FG_Transport's Mapping used to assign them and could not compile.
+// ============================================================================
 
-//Platform
-GVL_PLC.Inputs.I102.0 	:= Y_Platform.bRetracted;
-GVL_PLC.Inputs.I102.1 	:= Y_Platform.bExtended;
-Y_Platform.bRetract 	:= GVL_PLC.Outputs.Q102.0;
-Y_Platform.bExtend 	:= GVL_PLC.Outputs.Q102.1;
+// --- Y_Gripper - double solenoid, both coils and both limits ----------------
+// InHome %I101.0 "geoeffnet" -> retracted = OPEN. WorkPos %Q101.1 "schliessen".
+//
+// THE RETRACT COIL IS NEW. The table gained HomePos %Q101.0 in this revision; it
+// was missing before and the twin cylinder could never leave the extended limit
+// once bExtend dropped, because a de-energised double solenoid does not spring
+// back. Same fault, same fix, as the Beckhoff side.
+GVL_PLC.Inputs.I101.0	:= Y_Gripper.bRetracted;
+GVL_PLC.Inputs.I101.1	:= Y_Gripper.bExtended;
+Y_Gripper.bRetract	:= GVL_PLC.Outputs.Q101.0;
+Y_Gripper.bExtend	:= GVL_PLC.Outputs.Q101.1;
 
-//ReaderWindow
-GVL_PLC.Inputs.I103.1 	:= Y_ReaderWindow.bExtended;
-Y_ReaderWindow.bExtend 	:= GVL_PLC.Outputs.Q103.1;
+// --- Y_Platform - double solenoid, both coils and both limits ---------------
+// InHome %I102.0 "hinten", InWork %I102.1 "vorne".
+GVL_PLC.Inputs.I102.0	:= Y_Platform.bRetracted;
+GVL_PLC.Inputs.I102.1	:= Y_Platform.bExtended;
+Y_Platform.bRetract	:= GVL_PLC.Outputs.Q102.0;
+Y_Platform.bExtend	:= GVL_PLC.Outputs.Q102.1;
 
-// TODO: no address in xlsx for P_Reader (FB_Reader)
-// TODO: no address in xlsx for Y_LaserMark (FB_DeviceByte)]]></ST>
+// --- Y_ReaderWindow - double solenoid, both coils, ONE limit ----------------
+// WorkPos %Q103.1 "Position zum Code Lesen". HomePos %Q103.0 is new in this
+// revision, for the same reason as Y_Gripper's above.
+//
+// THE TABLE HAS NO Y_ReaderWindow_InHome. bRetracted is therefore not published
+// and the control PLC cannot see the window fully back - only that it is not at
+// the read position. Add %I103.0 to PLCTags_FG01.xlsx to close that.
+GVL_PLC.Inputs.I103.1	:= Y_ReaderWindow.bExtended;
+Y_ReaderWindow.bRetract	:= GVL_PLC.Outputs.Q103.0;
+Y_ReaderWindow.bExtend	:= GVL_PLC.Outputs.Q103.1;
+
+// --- Y_Gate1 / Y_Gate2 - single solenoid, spring return ---------------------
+// EXTEND CLOSES the gate and the spring opens it, so the coil is the CLOSING
+// command and both limits are read:
+//   InHome %I100x.0 "geoeffnet"  -> retracted = open
+//   InWork %I100x.1 "geschlossen" -> extended  = closed
+//   WorkPos %Q100x.1 "Schliessen" -> the close coil
+//
+// THE COIL IS %Q100x.1, NOT %Q100x.0. The previous mapping drove bit 0, which is
+// not a tag in the table at all, so the gates never closed.
+Y_Gate1.bExtend	:= GVL_PLC.Outputs.Q1001.1;
+GVL_PLC.Inputs.I1001.0	:= Y_Gate1.bRetracted;
+GVL_PLC.Inputs.I1001.1	:= Y_Gate1.bExtended;
+
+Y_Gate2.bExtend	:= GVL_PLC.Outputs.Q1002.1;
+GVL_PLC.Inputs.I1002.0	:= Y_Gate2.bRetracted;
+GVL_PLC.Inputs.I1002.1	:= Y_Gate2.bExtended;
+
+// --- P_Camera - the identify read -------------------------------------------
+// What the part must be carrying. FG_01 is the identify station: the twin's
+// DataReader reads the payload's SerialNumber key, and Assembly Part 1 carries
+// 60. A pallet with no part, or a part with no serial number, reads 0 and fails.
+//
+// SET HERE AND NOT IN InitRun BECAUSE Mapping IS THE ONLY ACTION WE OWN - OC
+// Assistant regenerates everything inside the {region generated code} blocks on
+// the next twin regeneration.
+P_Camera.nExpectedData := 60;
+
+// TODO: NO ADDRESS IN PLCTags_FG01.xlsx for P_Camera (FB_Camera).
+// Four bits are needed and the bit roles are fixed by FB_AbstractCamera:
+//   OUT bit 0 Enable   bit 1 Trigger
+//   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
+// Add one input byte and one output byte to the table, then:
+//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
+//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
+//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
+//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
+//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
+//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;
+// Until then the station cannot read a part and FG_01 cannot run.
+
+// TODO: NO ADDRESS IN PLCTags_FG01.xlsx for Y_LaserMark (FB_DeviceByte).
+// One control byte out, one status byte back; only control bit 0 is used - held
+// high for 1 s it applies the mark - and there are NO status bits, so the PLC
+// gets no confirmation that the laser fired. Needs one output byte:
+//   Y_LaserMark.nControlData.0 := GVL_PLC.Outputs.Q<n>.0;
+
+// TODO: NO ADDRESS IN PLCTags_FG01.xlsx for B_SafetyGate1 / B_SafetyGate2
+// (FB_SensorBinary). These are the independent gate-position monitors the laser
+// interlock reads; without them the interlock has only the cylinder limits,
+// which is exactly the single-source-of-truth the second sensor exists to avoid.
+//   GVL_PLC.Inputs.I<n>.<b> := B_SafetyGate1.bValue;
+//   GVL_PLC.Inputs.I<n>.<b> := B_SafetyGate2.bValue;]]></ST>
       </Implementation>
     </Action>
   </POU>

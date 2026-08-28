@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <POU Name="FB_Camera" Id="{204f260d-15c1-47fb-83f8-f44f2fc6f46e}" SpecialFunc="None">
+    <Declaration><![CDATA[// ============================================================================
+// Inspection camera - the TWIN side of the vision-sensor interface.
+//
+// It sits between two interfaces that are NOT the same shape, and translating
+// between them is its entire job.
+//
+// Below it, the Unity DataReader (Preliy.Demo.DataReader). Two bits down, two
+// bits and a 64 bit datum back - an echo and a value, nothing more:
+//
+//   Control 0  Enable            Status 0  Enabled     (echo of Enable)
+//   Control 1  Trigger           Status 1  Triggered   (echo of Trigger)
+//                                StatusData  the payload datum read for _key,
+//                                            0 when there is no payload, no
+//                                            such key, or the trigger is low
+//
+// Above it, FB_AbstractCamera in OC_PLC, which expects a real handshake:
+//
+//   Output 0  Enable             Input 0  Ready
+//   Output 1  Trigger            Input 1  Busy
+//                                Input 2  ResultValid
+//                                Input 3  ResultOK
+//
+// THE TWIN DOES NOT KNOW ABOUT READY, BUSY OR A VERDICT. The DataReader only
+// echoes what it was asked and hands over a number. Ready, Busy, ResultValid and
+// ResultOK are synthesised here, out of that echo plus one exposure timer plus
+// the comparison against nExpectedData. That is the point of this block: the twin
+// stays a dumb sensor and the emulated device carries the protocol.
+//
+// bResultValid USED TO BE THE CONSTANT TRUE, which meant the control PLC could
+// never tell "no verdict yet" from "verdict says no" - the exact distinction
+// FG_02's three fault codes are built on. It is now a real latch: it goes up when
+// the exposure completes, holds while the trigger is held, and drops when the
+// trigger is released.
+//
+// Bit assignment on the wire is decided in the calling group's Mapping action.
+// Both halves have to agree on it; nothing checks it for you.
+// ============================================================================
+FUNCTION_BLOCK FB_Camera EXTENDS FB_LinkDataLWord
+VAR_INPUT
+	// Commanded state, from the control PLC via the group Mapping action.
+	bEnable			: BOOL;
+	bTrigger		: BOOL;
+	// The datum the part must carry for this shot to pass. Compared as a signed
+	// integer against StatusData, which Unity writes as a C# long.
+	//
+	// A VALUE OF 0 MAKES THE VERDICT MEANINGLESS: an absent payload, a key the
+	// payload does not carry and a failed parse all read back 0, so a part that
+	// was never inspected would report OK. Configure a real value in Mapping.
+	nExpectedData	: LINT;
+	// How long the shot takes. Modelled, not measured - a vision sensor of this
+	// class answers in the low hundreds of ms. It must stay well inside FG_02's
+	// 3 s shot budget, and it must be non-zero, or Busy would never be observable
+	// and the control side could not distinguish a shot from a stuck trigger.
+	tExposure		: TIME := T#2000MS;
+END_VAR
+VAR_OUTPUT
+	// The twin's own echo, straight off the status byte.
+	bEnabled		: BOOL;
+	bTriggered		: BOOL;
+	// The synthesised handshake. These are what the group maps to the terminal.
+	bReady			: BOOL;
+	bBusy			: BOOL;
+	bResultValid	: BOOL;
+	bResultOK		: BOOL;
+	// The datum latched by the last completed shot, held for as long as the
+	// verdict is. Not on the wire - the interface is four bits - but it is what
+	// makes a NOK diagnosable when watching the SIM online.
+	nResult			: LINT;
+END_VAR
+VAR
+	ExposureTimer	: TON;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// --- command down to the twin -----------------------------------------------
+Control.0 := bEnable;
+Control.1 := bTrigger;
+
+// --- the twin's answer, unmodified ------------------------------------------
+bEnabled	:= Status.0;
+bTriggered	:= Status.1;
+
+// --- the shot ----------------------------------------------------------------
+// The timer is armed on the COMMAND and the ECHO together. Both matter:
+//
+//   bEnable / bTrigger  - dropping the trigger has to reset the exposure on the
+//                         same scan. Arming on bTriggered alone would leave the
+//                         timer running through the scans the twin takes to
+//                         echo the release, and an already-elapsed TON re-latches
+//                         a stale verdict the moment it is looked at again.
+//   bEnabled/bTriggered - the twin has to have actually accepted the command. If
+//                         Unity is not connected the status byte stays 0, no
+//                         exposure ever starts, Ready never comes and FG_02
+//                         raises fault 2. That is the honest outcome.
+//
+// NOT bResultValid stops the timer once a verdict is out, so the verdict is
+// latched once and then stands still rather than being recomputed every scan.
+ExposureTimer(
+	IN	:= bEnable AND bTrigger AND bEnabled AND bTriggered AND NOT bResultValid,
+	PT	:= tExposure);
+
+IF ExposureTimer.Q THEN
+	// StatusData is a bit string on this side and a signed long on Unity's.
+	// Convert rather than compare across types - LWORD against LINT is not a
+	// comparison the compiler will do for you.
+	nResult			:= LWORD_TO_LINT(StatusData);
+	bResultOK		:= nResult = nExpectedData;
+	bResultValid	:= TRUE;
+END_IF
+
+// The verdict is released by the trigger being released - which is also what
+// tells the twin to clear its value - or by the camera being powered down.
+IF NOT bTrigger OR NOT bEnable THEN
+	bResultValid	:= FALSE;
+	bResultOK		:= FALSE;
+	nResult			:= 0;
+END_IF
+
+// --- the handshake bits -------------------------------------------------------
+// Both are DERIVED EVERY SCAN, never remembered. A stored flag maintained in one
+// branch is stale in every other one.
+//
+// Ready is permission to trigger: powered, idle, and holding no unread verdict.
+// Busy is the exposure in progress: triggered and no verdict out yet.
+bBusy	:= bEnable AND bEnabled AND bTriggered AND NOT bResultValid;
+bReady	:= bEnable AND bEnabled AND NOT bTriggered AND NOT bResultValid;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

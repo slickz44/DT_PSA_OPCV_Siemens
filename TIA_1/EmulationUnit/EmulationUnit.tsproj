@@ -23,7 +23,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{3349BDD1-C1B4-41A8-B54C-DC47D31B3B38}" Name="SIM_1" PrjFilePath="SIM_1\SIM_1.plcproj" TmcFilePath="SIM_1\SIM_1.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{344691B8-27B0-4A8B-CBA7-A10B33974D0E}" TmcPath="OC\OC.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{F8CA6E10-EA46-BED2-306C-1F95D54F759B}" TmcPath="SIM_1\SIM_1.tmc">
 					<Name>SIM_1 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -33,12 +33,28 @@
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_01.P_Reader.Control</Name>
+							<Name>MAIN.FG_01.B_SafetyGate1.Control</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_01.P_Reader.ControlData</Name>
+							<Name>MAIN.FG_01.B_SafetyGate2.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.P_Camera.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.P_Camera.ControlData</Name>
 							<Type>LWORD</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.Y_Gate1.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.Y_Gate2.Control</Name>
+							<Type>BYTE</Type>
 						</Var>
 						<Var>
 							<Name>MAIN.FG_01.Y_Gripper.Control</Name>
@@ -61,7 +77,19 @@
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_02.H_CameraLight.Control</Name>
+							<Name>MAIN.FG_02.P_Camera.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_02.P_Camera.ControlData</Name>
+							<Type>LWORD</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_03.B_Detect1.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_03.B_Detect2.Control</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -98,6 +126,10 @@
 						</Var>
 						<Var>
 							<Name>MAIN.FG_04.Y_AxisZ.Control</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_05.B_Detect.Control</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -214,14 +246,6 @@
 						</Var>
 						<Var>
 							<Name>MAIN.FG_System.SS_EStop2.Control</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.B_SafetyGate1.Control</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.B_SafetyGate2.Control</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -408,14 +432,6 @@
 							<Name>MAIN.FG_Transport.Transport02_M_Conveyor.ControlData</Name>
 							<Type>REAL</Type>
 						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.Y_Gate1.Control</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.Y_Gate2.Control</Name>
-							<Type>BYTE</Type>
-						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
@@ -428,12 +444,28 @@
 							<Type>REAL</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_01.P_Reader.Status</Name>
+							<Name>MAIN.FG_01.B_SafetyGate1.Status</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_01.P_Reader.StatusData</Name>
+							<Name>MAIN.FG_01.B_SafetyGate2.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.P_Camera.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.P_Camera.StatusData</Name>
 							<Type>LWORD</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.Y_Gate1.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_01.Y_Gate2.Status</Name>
+							<Type>BYTE</Type>
 						</Var>
 						<Var>
 							<Name>MAIN.FG_01.Y_Gripper.Status</Name>
@@ -456,7 +488,19 @@
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.FG_02.H_CameraLight.Status</Name>
+							<Name>MAIN.FG_02.P_Camera.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_02.P_Camera.StatusData</Name>
+							<Type>LWORD</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_03.B_Detect1.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_03.B_Detect2.Status</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -493,6 +537,10 @@
 						</Var>
 						<Var>
 							<Name>MAIN.FG_04.Y_AxisZ.Status</Name>
+							<Type>BYTE</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.FG_05.B_Detect.Status</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -609,14 +657,6 @@
 						</Var>
 						<Var>
 							<Name>MAIN.FG_System.SS_EStop2.Status</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.B_SafetyGate1.Status</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.B_SafetyGate2.Status</Name>
 							<Type>BYTE</Type>
 						</Var>
 						<Var>
@@ -802,14 +842,6 @@
 						<Var>
 							<Name>MAIN.FG_Transport.Transport02_M_Conveyor.StatusData</Name>
 							<Type>REAL</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.Y_Gate1.Status</Name>
-							<Type>BYTE</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.FG_Transport.Y_Gate2.Status</Name>
-							<Type>BYTE</Type>
 						</Var>
 					</Vars>
 					<Contexts>

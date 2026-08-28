@@ -51,47 +51,71 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{2ce11f03-d5c5-409c-b06c-e8521210c0b5}">
       <Implementation>
-        <ST><![CDATA[//Axis R1
-GVL_PLC.Inputs.I301.0 	:= Y_AxisR1.bRetracted;
-GVL_PLC.Inputs.I301.1 	:= Y_AxisR1.bExtended;
-Y_AxisR1.bRetract 	:= GVL_PLC.Outputs.Q301.0;
-Y_AxisR1.bExtend 	:= GVL_PLC.Outputs.Q301.1;
+        <ST><![CDATA[// ============================================================================
+// FG_03 twin <-> PLCSIM Advanced process image.
+//
+// Addresses: Siemens/_data/PLCTags_FG03.xlsx. The only group whose cylinders are
+// COMPLETE in the table - all seven have both limits and both coils:
+//   InHome  %I3xx.0 -> bRetracted      HomePos %Q3xx.0 -> bRetract
+//   InWork  %I3xx.1 -> bExtended       WorkPos %Q3xx.1 -> bExtend
+//
+// THE AXIS NAMES ARE A TRAP. Arm 1 is X1/Y1/R1 and arm 2 is X2/Y2, but R1 is the
+// ROTATION shared by the transfer, not "arm 1's rotation". Read
+// _docs/reference/fg-03-behaviour.md before writing control code against these.
+// ============================================================================
 
-//Axis X1
-GVL_PLC.Inputs.I302.0 	:= Y_AxisX1.bRetracted;
-GVL_PLC.Inputs.I302.1 	:= Y_AxisX1.bExtended;
-Y_AxisX1.bRetract 	:= GVL_PLC.Outputs.Q302.0;
-Y_AxisX1.bExtend 	:= GVL_PLC.Outputs.Q302.1;
+// --- Y_AxisR1 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I301.0	:= Y_AxisR1.bRetracted;
+GVL_PLC.Inputs.I301.1	:= Y_AxisR1.bExtended;
+Y_AxisR1.bRetract	:= GVL_PLC.Outputs.Q301.0;
+Y_AxisR1.bExtend	:= GVL_PLC.Outputs.Q301.1;
 
-//Axis Y1
-GVL_PLC.Inputs.I303.0 	:= Y_AxisY1.bRetracted;
-GVL_PLC.Inputs.I303.1 	:= Y_AxisY1.bExtended;
-Y_AxisY1.bRetract 	:= GVL_PLC.Outputs.Q303.0;
-Y_AxisY1.bExtend 	:= GVL_PLC.Outputs.Q303.1;
+// --- Y_AxisX1 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I302.0	:= Y_AxisX1.bRetracted;
+GVL_PLC.Inputs.I302.1	:= Y_AxisX1.bExtended;
+Y_AxisX1.bRetract	:= GVL_PLC.Outputs.Q302.0;
+Y_AxisX1.bExtend	:= GVL_PLC.Outputs.Q302.1;
 
-//Axis X2
-GVL_PLC.Inputs.I304.0 	:= Y_AxisX2.bRetracted;
-GVL_PLC.Inputs.I304.1 	:= Y_AxisX2.bExtended;
-Y_AxisX2.bRetract 	:= GVL_PLC.Outputs.Q304.0;
-Y_AxisX2.bExtend 	:= GVL_PLC.Outputs.Q304.1;
+// --- Y_AxisY1 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I303.0	:= Y_AxisY1.bRetracted;
+GVL_PLC.Inputs.I303.1	:= Y_AxisY1.bExtended;
+Y_AxisY1.bRetract	:= GVL_PLC.Outputs.Q303.0;
+Y_AxisY1.bExtend	:= GVL_PLC.Outputs.Q303.1;
 
-//Axis Y2
-GVL_PLC.Inputs.I305.0 	:= Y_AxisY2.bRetracted;
-GVL_PLC.Inputs.I305.1 	:= Y_AxisY2.bExtended;
-Y_AxisY2.bRetract 	:= GVL_PLC.Outputs.Q305.0;
-Y_AxisY2.bExtend 	:= GVL_PLC.Outputs.Q305.1;
+// --- Y_AxisX2 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I304.0	:= Y_AxisX2.bRetracted;
+GVL_PLC.Inputs.I304.1	:= Y_AxisX2.bExtended;
+Y_AxisX2.bRetract	:= GVL_PLC.Outputs.Q304.0;
+Y_AxisX2.bExtend	:= GVL_PLC.Outputs.Q304.1;
 
-//Gripper 1
-GVL_PLC.Inputs.I306.0 	:= Y_Gripper1.bRetracted;
-GVL_PLC.Inputs.I306.1 	:= Y_Gripper1.bExtended;
-Y_Gripper1.bRetract 	:= GVL_PLC.Outputs.Q306.0;
-Y_Gripper1.bExtend 	:= GVL_PLC.Outputs.Q306.1;
+// --- Y_AxisY2 - double solenoid ---------------------------------------------
+GVL_PLC.Inputs.I305.0	:= Y_AxisY2.bRetracted;
+GVL_PLC.Inputs.I305.1	:= Y_AxisY2.bExtended;
+Y_AxisY2.bRetract	:= GVL_PLC.Outputs.Q305.0;
+Y_AxisY2.bExtend	:= GVL_PLC.Outputs.Q305.1;
 
-//Gripper 2
-GVL_PLC.Inputs.I307.0 	:= Y_Gripper2.bRetracted;
-GVL_PLC.Inputs.I307.1 	:= Y_Gripper2.bExtended;
-Y_Gripper2.bRetract 	:= GVL_PLC.Outputs.Q307.0;
-Y_Gripper2.bExtend 	:= GVL_PLC.Outputs.Q307.1;]]></ST>
+// --- Y_Gripper1 - double solenoid, the PLACING arm --------------------------
+// The jaws reach .bExtended closed on NOTHING sooner than closed on a part, so
+// this limit is not a grip witness. Only B_Detect1 says a part is held.
+GVL_PLC.Inputs.I306.0	:= Y_Gripper1.bRetracted;
+GVL_PLC.Inputs.I306.1	:= Y_Gripper1.bExtended;
+Y_Gripper1.bRetract	:= GVL_PLC.Outputs.Q306.0;
+Y_Gripper1.bExtend	:= GVL_PLC.Outputs.Q306.1;
+
+// --- Y_Gripper2 - double solenoid -------------------------------------------
+GVL_PLC.Inputs.I307.0	:= Y_Gripper2.bRetracted;
+GVL_PLC.Inputs.I307.1	:= Y_Gripper2.bExtended;
+Y_Gripper2.bRetract	:= GVL_PLC.Outputs.Q307.0;
+Y_Gripper2.bExtend	:= GVL_PLC.Outputs.Q307.1;
+
+// TODO: NO ADDRESS IN PLCTags_FG03.xlsx for B_Detect1 / B_Detect2
+// (FB_SensorBinary). THESE ARE THE GRIP WITNESSES and their absence is the
+// worst gap in this table: a gripper cylinder reaching .Extended proves nothing
+// about whether a part is held, and FG_03's reset branches on exactly these two
+// bits at Resetting step 0. Without them the station cannot reset safely with a
+// part in a gripper. See _docs/reference/gripper-station-reset.md.
+//   GVL_PLC.Inputs.I<n>.<b> := B_Detect1.bValue;
+//   GVL_PLC.Inputs.I<n>.<b> := B_Detect2.bValue;]]></ST>
       </Implementation>
     </Action>
   </POU>

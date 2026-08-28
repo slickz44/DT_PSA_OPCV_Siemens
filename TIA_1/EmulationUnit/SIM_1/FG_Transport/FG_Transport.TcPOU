@@ -117,115 +117,157 @@ END_VAR
     </Method>
     <Action Name="Mapping" Id="{62ee953e-c687-4d6b-a096-748c09bae4e3}">
       <Implementation>
-        <ST><![CDATA[Y_Gate1.bExtend := GVL_PLC.Outputs.Q1001.0;
-GVL_PLC.Inputs.I1001.0 := Y_Gate1.bRetracted;
-GVL_PLC.Inputs.I1001.1 := Y_Gate1.bExtended;
+        <ST><![CDATA[// ============================================================================
+// FG_Transport twin <-> PLCSIM Advanced process image.
+//
+// Addresses: Siemens/_data/PLCTags_FG_Transport.xlsx.
+//
+// One byte per station, in the table's own order: Index01..05 on %I/%Q1003..1007,
+// Stopper01..04 on 1008..1011, Lift01/02 on 1012/1013, Transport01/02 on
+// 1014/1015. The bit positions repeat exactly per station type, so read one
+// block and you have read them all.
+//
+// THE TWO GATES ARE NOT MAPPED HERE ANY MORE. FG_TS_Gate_1 / _2 keep their
+// %I1001 / %I1002 addresses in this table, but the twin devices Y_Gate1 and
+// Y_Gate2 live in FG_01 now - they are not members of this function block and
+// assigning them here did not compile. They are mapped in FG_01's Mapping action,
+// from these same addresses.
+//
+// Three things that are easy to get backwards:
+//
+//   * A STOPPER IS RETRACTED WHEN IT HOLDS THE PALLET. InHome %I1xxx.4 is
+//     "Stopper geschlossen" and WorkPos %Q1xxx.2 is "Stopper oeffnen" - so
+//     EXTENDING RELEASES. Nine authored Function entries in the twin say the
+//     opposite and are known to be wrong; the table agrees with reality, not
+//     with the twin's prose.
+//   * A LIFT IS RETRACTED WHEN IT IS DOWN. InHome "Heber ist unten",
+//     HomePos "Heber senken".
+//   * ON A DRIVE, nControl.0 IS FORWARDS AND nControl.1 IS BACKWARDS. The table
+//     names them: _Plus is "Antrieb vorwaerts", _Minus is "Antrieb rueckwaerts",
+//     and Plus is always the LOWER address of the pair. THE PREVIOUS MAPPING HAD
+//     ALL FOUR DRIVES INVERTED - it copied the Beckhoff side's channel order,
+//     where the lower channel happens to be nControl.1, onto Siemens addresses
+//     where the lower address is Plus. Every belt ran the wrong way.
+// ============================================================================
 
-Y_Gate2.bExtend := GVL_PLC.Outputs.Q1002.0;
-GVL_PLC.Inputs.I1002.0 := Y_Gate2.bRetracted;
-GVL_PLC.Inputs.I1002.1 := Y_Gate2.bExtended;
+// --- Index01 - detect, exit, lift and stopper on byte 1003 --------------
+GVL_PLC.Inputs.I1003.0	:= Index01_B_Detect.bValue;
+GVL_PLC.Inputs.I1003.1	:= Index01_B_Exit.bValue;
+GVL_PLC.Inputs.I1003.2	:= Index01_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1003.3	:= Index01_Y_Lift.bExtended;		// "Heber ist oben"
+GVL_PLC.Inputs.I1003.4	:= Index01_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Index01_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1003.0;		// "Heber senken"
+Index01_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1003.1;		// "Heber heben"
+Index01_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1003.2;		// "Stopper oeffnen"
 
-//Index Unit 1
-GVL_PLC.Inputs.I1003.0 		:= Index01_B_Detect.bValue;
-GVL_PLC.Inputs.I1003.1 		:= Index01_B_Exit.bValue;
-GVL_PLC.Inputs.I1003.2 		:= Index01_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1003.3 		:= Index01_Y_Lift.bExtended;
-GVL_PLC.Inputs.I1003.4 		:= Index01_Y_Stopper.bRetracted;
-Index01_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1003.0;
-Index01_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1003.1;
-Index01_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1003.2;
+// --- Index02 - detect, exit, lift and stopper on byte 1004 --------------
+GVL_PLC.Inputs.I1004.0	:= Index02_B_Detect.bValue;
+GVL_PLC.Inputs.I1004.1	:= Index02_B_Exit.bValue;
+GVL_PLC.Inputs.I1004.2	:= Index02_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1004.3	:= Index02_Y_Lift.bExtended;		// "Heber ist oben"
+GVL_PLC.Inputs.I1004.4	:= Index02_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Index02_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1004.0;		// "Heber senken"
+Index02_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1004.1;		// "Heber heben"
+Index02_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1004.2;		// "Stopper oeffnen"
 
-//Index Unit 2
-GVL_PLC.Inputs.I1004.0 		:= Index02_B_Detect.bValue;
-GVL_PLC.Inputs.I1004.1 		:= Index02_B_Exit.bValue;
-GVL_PLC.Inputs.I1004.2 		:= Index02_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1004.3 		:= Index02_Y_Lift.bExtended;
-GVL_PLC.Inputs.I1004.4 		:= Index02_Y_Stopper.bRetracted;
-Index02_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1004.0;
-Index02_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1004.1;
-Index02_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1004.2;
+// --- Index03 - detect, exit, lift and stopper on byte 1005 --------------
+GVL_PLC.Inputs.I1005.0	:= Index03_B_Detect.bValue;
+GVL_PLC.Inputs.I1005.1	:= Index03_B_Exit.bValue;
+GVL_PLC.Inputs.I1005.2	:= Index03_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1005.3	:= Index03_Y_Lift.bExtended;		// "Heber ist oben"
+GVL_PLC.Inputs.I1005.4	:= Index03_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Index03_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1005.0;		// "Heber senken"
+Index03_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1005.1;		// "Heber heben"
+Index03_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1005.2;		// "Stopper oeffnen"
 
-//Index Unit 3
-GVL_PLC.Inputs.I1005.0 		:= Index03_B_Detect.bValue;
-GVL_PLC.Inputs.I1005.1 		:= Index03_B_Exit.bValue;
-GVL_PLC.Inputs.I1005.2 		:= Index03_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1005.3 		:= Index03_Y_Lift.bExtended;
-GVL_PLC.Inputs.I1005.4 		:= Index03_Y_Stopper.bRetracted;
-Index03_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1005.0;
-Index03_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1005.1;
-Index03_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1005.2;
+// --- Index04 - detect, exit, lift and stopper on byte 1006 --------------
+GVL_PLC.Inputs.I1006.0	:= Index04_B_Detect.bValue;
+GVL_PLC.Inputs.I1006.1	:= Index04_B_Exit.bValue;
+GVL_PLC.Inputs.I1006.2	:= Index04_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1006.3	:= Index04_Y_Lift.bExtended;		// "Heber ist oben"
+GVL_PLC.Inputs.I1006.4	:= Index04_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Index04_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1006.0;		// "Heber senken"
+Index04_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1006.1;		// "Heber heben"
+Index04_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1006.2;		// "Stopper oeffnen"
 
-//Index Unit 4
-GVL_PLC.Inputs.I1006.0 		:= Index04_B_Detect.bValue;
-GVL_PLC.Inputs.I1006.1 		:= Index04_B_Exit.bValue;
-GVL_PLC.Inputs.I1006.2 		:= Index04_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1006.3 		:= Index04_Y_Lift.bExtended;
-GVL_PLC.Inputs.I1006.4 		:= Index04_Y_Stopper.bRetracted;
-Index04_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1006.0;
-Index04_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1006.1;
-Index04_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1006.2;
+// --- Index05 - detect, exit, lift and stopper on byte 1007 --------------
+GVL_PLC.Inputs.I1007.0	:= Index05_B_Detect.bValue;
+GVL_PLC.Inputs.I1007.1	:= Index05_B_Exit.bValue;
+GVL_PLC.Inputs.I1007.2	:= Index05_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1007.3	:= Index05_Y_Lift.bExtended;		// "Heber ist oben"
+GVL_PLC.Inputs.I1007.4	:= Index05_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Index05_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1007.0;		// "Heber senken"
+Index05_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1007.1;		// "Heber heben"
+Index05_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1007.2;		// "Stopper oeffnen"
 
-//Index Unit 5
-GVL_PLC.Inputs.I1007.0 		:= Index05_B_Detect.bValue;
-GVL_PLC.Inputs.I1007.1 		:= Index05_B_Exit.bValue;
-GVL_PLC.Inputs.I1007.2 		:= Index05_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1007.3 		:= Index05_Y_Lift.bExtended;
-GVL_PLC.Inputs.I1007.4 		:= Index05_Y_Stopper.bRetracted;
-Index05_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1007.0;
-Index05_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1007.1;
-Index05_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1007.2;
+// --- Stopper01 - detect, exit and stopper on byte 1008 --------------------
+GVL_PLC.Inputs.I1008.0	:= Stopper01_B_Detect.bValue;
+GVL_PLC.Inputs.I1008.1	:= Stopper01_B_Exit.bValue;
+GVL_PLC.Inputs.I1008.4	:= Stopper01_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Stopper01_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1008.2;		// "Stopper oeffnen"
 
-//Stopper 1
-GVL_PLC.Inputs.I1008.0 		:= Stopper01_B_Detect.bValue;
-GVL_PLC.Inputs.I1008.1 		:= Stopper01_B_Exit.bValue;
-GVL_PLC.Inputs.I1008.4 		:= Stopper01_Y_Stopper.bRetracted;
-Stopper01_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1008.2;
+// --- Stopper02 - detect, exit and stopper on byte 1009 --------------------
+GVL_PLC.Inputs.I1009.0	:= Stopper02_B_Detect.bValue;
+GVL_PLC.Inputs.I1009.1	:= Stopper02_B_Exit.bValue;
+GVL_PLC.Inputs.I1009.4	:= Stopper02_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Stopper02_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1009.2;		// "Stopper oeffnen"
 
-//Stopper 2
-GVL_PLC.Inputs.I1009.0 		:= Stopper02_B_Detect.bValue;
-GVL_PLC.Inputs.I1009.1 		:= Stopper02_B_Exit.bValue;
-GVL_PLC.Inputs.I1009.4 		:= Stopper02_Y_Stopper.bRetracted;
-Stopper02_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1009.2;
+// --- Stopper03 - detect, exit and stopper on byte 1010 --------------------
+GVL_PLC.Inputs.I1010.0	:= Stopper03_B_Detect.bValue;
+GVL_PLC.Inputs.I1010.1	:= Stopper03_B_Exit.bValue;
+GVL_PLC.Inputs.I1010.4	:= Stopper03_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Stopper03_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1010.2;		// "Stopper oeffnen"
 
-//Stopper 3
-GVL_PLC.Inputs.I1010.0 		:= Stopper03_B_Detect.bValue;
-GVL_PLC.Inputs.I1010.1 		:= Stopper03_B_Exit.bValue;
-GVL_PLC.Inputs.I1010.4 		:= Stopper03_Y_Stopper.bRetracted;
-Stopper03_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1010.2;
+// --- Stopper04 - detect, exit and stopper on byte 1011 --------------------
+GVL_PLC.Inputs.I1011.0	:= Stopper04_B_Detect.bValue;
+GVL_PLC.Inputs.I1011.1	:= Stopper04_B_Exit.bValue;
+GVL_PLC.Inputs.I1011.4	:= Stopper04_Y_Stopper.bRetracted;		// "Stopper geschlossen"
+Stopper04_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1011.2;		// "Stopper oeffnen"
 
-//Stopper 4
-GVL_PLC.Inputs.I1011.0 		:= Stopper04_B_Detect.bValue;
-GVL_PLC.Inputs.I1011.1 		:= Stopper04_B_Exit.bValue;
-GVL_PLC.Inputs.I1011.4 		:= Stopper04_Y_Stopper.bRetracted;
-Stopper04_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1011.2;
+// --- Lift01 - detect, exit, lift and carriage belt on byte 1012 --------
+GVL_PLC.Inputs.I1012.0	:= Lift01_B_Detect.bValue;
+GVL_PLC.Inputs.I1012.1	:= Lift01_B_Exit.bValue;
+GVL_PLC.Inputs.I1012.2	:= Lift01_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1012.3	:= Lift01_Y_Lift.bExtended;		// "Heber ist oben"
+Lift01_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1012.0;		// "Heber senken"
+Lift01_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1012.1;		// "Heber heben"
+Lift01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1012.2;		// _Plus  "Antrieb vorwaerts"
+Lift01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1012.3;		// _Minus "Antrieb rueckwaerts"
 
-//Lift 1
-GVL_PLC.Inputs.I1012.0 			:= Lift01_B_Detect.bValue;
-GVL_PLC.Inputs.I1012.1 			:= Lift01_B_Exit.bValue;
-GVL_PLC.Inputs.I1012.2 			:= Lift01_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1012.3 			:= Lift01_Y_Lift.bExtended;
-Lift01_Y_Lift.bRetract 			:= GVL_PLC.Outputs.Q1012.0;
-Lift01_Y_Lift.bExtend 			:= GVL_PLC.Outputs.Q1012.1;
-Lift01_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1012.2;
-Lift01_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1012.3;
+// --- Lift02 - detect, exit, lift and carriage belt on byte 1013 --------
+GVL_PLC.Inputs.I1013.0	:= Lift02_B_Detect.bValue;
+GVL_PLC.Inputs.I1013.1	:= Lift02_B_Exit.bValue;
+GVL_PLC.Inputs.I1013.2	:= Lift02_Y_Lift.bRetracted;		// "Heber ist unten"
+GVL_PLC.Inputs.I1013.3	:= Lift02_Y_Lift.bExtended;		// "Heber ist oben"
+Lift02_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1013.0;		// "Heber senken"
+Lift02_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1013.1;		// "Heber heben"
+Lift02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1013.2;		// _Plus  "Antrieb vorwaerts"
+Lift02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1013.3;		// _Minus "Antrieb rueckwaerts"
 
-//Lift 2
-GVL_PLC.Inputs.I1013.0 			:= Lift02_B_Detect.bValue;
-GVL_PLC.Inputs.I1013.1 			:= Lift02_B_Exit.bValue;
-GVL_PLC.Inputs.I1013.2 			:= Lift02_Y_Lift.bRetracted;
-GVL_PLC.Inputs.I1013.3 			:= Lift02_Y_Lift.bExtended;
-Lift02_Y_Lift.bRetract 			:= GVL_PLC.Outputs.Q1013.0;
-Lift02_Y_Lift.bExtend 			:= GVL_PLC.Outputs.Q1013.1;
-Lift02_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1013.2;
-Lift02_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1013.3;
+// --- Transport01 - the level 1 circulation belt, byte 1014 -------------------
+Transport01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1014.0;		// _Plus  "Antrieb vorwaerts"
+Transport01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1014.1;		// _Minus "Antrieb rueckwaerts"
 
-//Transport 1
-Transport01_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1014.0;
-Transport01_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1014.1;
+// --- Transport02 - the level 2 circulation belt, byte 1015 -------------------
+Transport02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1015.0;		// _Plus  "Antrieb vorwaerts"
+Transport02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1015.1;		// _Minus "Antrieb rueckwaerts"
 
-//Transport 2
-Transport02_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1015.0;
-Transport02_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1015.1;]]></ST>
+// TODO: NO INPUT ADDRESS IN PLCTags_FG_Transport.xlsx for ANY of the four drives'
+// running feedback. Every FB_Drive publishes nStatus.6 - "moving", written every
+// scan - and none of the four has a tag for it, so the control PLC commands a belt
+// and is never told whether it turned. A running belt is not a moving pallet, but
+// a belt that never started is not either, and today the PLC cannot tell those
+// apart. Add four input bits:
+//   GVL_PLC.Inputs.I<n>.<b> := Lift01_M_Conveyor.nStatus.6;
+//   GVL_PLC.Inputs.I<n>.<b> := Lift02_M_Conveyor.nStatus.6;
+//   GVL_PLC.Inputs.I<n>.<b> := Transport01_M_Conveyor.nStatus.6;
+//   GVL_PLC.Inputs.I<n>.<b> := Transport02_M_Conveyor.nStatus.6;
+// nStatus.7 is NOT a health bit - it is a one second init pulse. Do not map it.
+
+// TODO: NO Y_Stopper_InWork IN THE TABLE for any of the nine stoppers. Only the
+// closed limit is published, so .bExtended goes nowhere and the PLC can see that
+// a stopper has left the blocking position but never that it is fully clear. The
+// Beckhoff side reads both limits on every stopper. Add %I1xxx.5 per station.]]></ST>
       </Implementation>
     </Action>
   </POU>

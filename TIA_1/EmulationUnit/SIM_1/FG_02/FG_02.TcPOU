@@ -13,6 +13,8 @@ END_VAR
 	InitRun();
 	P_Camera();
 {endregion}
+
+Mapping();
 ]]></ST>
     </Implementation>
     <Method Name="InitRun" Id="{9f43e803-fcdb-4fb1-81ce-65421d04daeb}">
@@ -30,5 +32,39 @@ END_VAR
 ]]></ST>
       </Implementation>
     </Method>
+  
+    <Action Name="Mapping" Id="{49397cc5-ad1e-4523-ad4e-30fee3396507}">
+      <Implementation>
+        <ST><![CDATA[// ============================================================================
+// FG_02 twin <-> PLCSIM Advanced process image.
+//
+// One device, and it has no address yet. There is NO PLCTags_FG02.xlsx in
+// Siemens/_data/ at all - FG_02 is the only group with no tag table.
+// ============================================================================
+
+// --- P_Camera - the mark verification read ----------------------------------
+// FG_02 inspects the mark FG_01 applied: the laser writes LaserMark := 240 onto
+// the payload, this station reads that key back and passes only on 240. A part
+// that skipped FG_01, or whose mark failed, reads 0 and is a NOK.
+//
+// SET HERE AND NOT IN InitRun BECAUSE Mapping IS THE ONLY ACTION WE OWN - OC
+// Assistant regenerates everything inside the {region generated code} blocks on
+// the next twin regeneration.
+P_Camera.nExpectedData := 240;
+
+// TODO: NO TAG TABLE FOR FG_02. Add PLCTags_FG02.xlsx with one input byte and
+// one output byte, then wire the four bits. The bit roles are fixed by
+// FB_AbstractCamera and are IDENTICAL in FG_01, FG_02 and FG_05:
+//   OUT bit 0 Enable   bit 1 Trigger
+//   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
+//
+//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
+//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
+//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
+//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
+//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
+//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;]]></ST>
+      </Implementation>
+    </Action>
   </POU>
 </TcPlcObject>
