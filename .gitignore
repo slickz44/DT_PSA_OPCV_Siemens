@@ -1,0 +1,23 @@
+# This module is its own repository, so it states its own rules. The main repo's
+# .gitignore never applied inside here - a nested repository has its own - and its
+# root-anchored /_data/ rule was doing nothing for this module's _data/ even when the
+# two lived in one tree.
+#
+# _data/ is deliberately NOT ignored. The PLC tag exports travel with this module; they
+# are gated by a permission prompt, not by being absent.
+
+__pycache__/
+*.pyc
+
+# The engineering TOOLS, when this module has any. Nothing here yet: the control side
+# does not exist. Everything public - skills, CLAUDE.md, the handoff - is in _workflow/.
+/_private/
+
+# There is deliberately no .claude/ here - _workflow/ holds the agent material and its
+# skills are read by path. This rule is a guard against a tool creating one.
+/.claude/
+/_workflow/settings.local.json
+
+scheduled_tasks.lock
+
+# TIA_1/ is a parked TwinCAT template. Its own .gitignore covers its build artifacts.

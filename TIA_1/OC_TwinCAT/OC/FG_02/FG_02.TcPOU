@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_02" Id="{669b5fb7-101c-4b47-8f64-4b0c099808fe}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_02
+{region generated code}
+VAR_INPUT
+	H_CameraLight : FB_Lamp;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	H_CameraLight();
+{endregion}
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{9f43e803-fcdb-4fb1-81ce-65421d04daeb}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

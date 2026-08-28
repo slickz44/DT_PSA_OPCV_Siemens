@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="MAIN" Id="{dad680ec-4ae4-426d-a3b8-23551819b713}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+
+{region generated code}
+VAR_INPUT
+	bInitRun : BOOL := TRUE;
+	fbSystem : FB_System;
+	FG_01 : FG_01;
+	FG_02 : FG_02;
+	FG_03 : FG_03;
+	FG_04 : FG_04;
+	FG_05 : FG_05;
+	FG_System : FG_System;
+	FG_Transport : FG_Transport;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	fbSystem();
+	FG_01();
+	FG_02();
+	FG_03();
+	FG_04();
+	FG_05();
+	FG_System();
+	FG_Transport();
+{endregion}
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{fdf32ae9-4714-4c4b-963e-a9705ad3f334}">
+      <Declaration><![CDATA[METHOD InitRun]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

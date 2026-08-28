@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_05" Id="{4d5c652d-69ed-4faa-9522-386134bcffdc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_05
+{region generated code}
+VAR_INPUT
+	B_Part : FB_SensorBinary;
+	P_Camera : FB_Reader;
+	Y_AxisR : FB_Cylinder;
+	Y_AxisX : FB_Cylinder;
+	Y_AxisZ1 : FB_Cylinder;
+	Y_AxisZ2 : FB_Cylinder;
+	Y_CapsSource : FB_DeviceByte;
+	Y_CapsSourceStopper : FB_Cylinder;
+	Y_Gripper : FB_Cylinder;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	B_Part();
+	P_Camera();
+	Y_AxisR();
+	Y_AxisX();
+	Y_AxisZ1();
+	Y_AxisZ2();
+	Y_CapsSource();
+	Y_CapsSourceStopper();
+	Y_Gripper();
+{endregion}
+
+Mapping();
+
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{c59dc9db-a98f-4494-a214-3581f3c7962a}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{66c4bd2c-e617-40b7-a0ca-a12b9a98746f}">
+      <Implementation>
+        <ST><![CDATA[//Part sensor
+GVL_PLC.Inputs.I500.0 	:= B_Part.bValue;
+
+//Axis R
+GVL_PLC.Inputs.I501.0 	:= Y_AxisR.bRetracted;
+GVL_PLC.Inputs.I501.1 	:= Y_AxisR.bExtended;
+Y_AxisR.bRetract 	:= GVL_PLC.Outputs.Q501.0;
+Y_AxisR.bExtend 	:= GVL_PLC.Outputs.Q501.1;
+
+//Axis X
+GVL_PLC.Inputs.I502.0 	:= Y_AxisX.bRetracted;
+GVL_PLC.Inputs.I502.1 	:= Y_AxisX.bExtended;
+Y_AxisX.bRetract 	:= GVL_PLC.Outputs.Q502.0;
+Y_AxisX.bExtend 	:= GVL_PLC.Outputs.Q502.1;
+
+//Axis Z1
+GVL_PLC.Inputs.I503.0 	:= Y_AxisZ1.bRetracted;
+GVL_PLC.Inputs.I503.1 	:= Y_AxisZ1.bExtended;
+Y_AxisZ1.bRetract 	:= GVL_PLC.Outputs.Q503.0;
+Y_AxisZ1.bExtend 	:= GVL_PLC.Outputs.Q503.1;
+
+//Axis Z2
+GVL_PLC.Inputs.I504.0 	:= Y_AxisZ2.bRetracted;
+GVL_PLC.Inputs.I504.1 	:= Y_AxisZ2.bExtended;
+Y_AxisZ2.bRetract 	:= GVL_PLC.Outputs.Q504.0;
+Y_AxisZ2.bExtend 	:= GVL_PLC.Outputs.Q504.1;
+
+//Caps Source Stopper
+GVL_PLC.Inputs.I505.0 		:= Y_CapsSourceStopper.bRetracted;
+Y_CapsSourceStopper.bExtend 	:= GVL_PLC.Outputs.Q505.1;
+
+//Gripper
+GVL_PLC.Inputs.I506.0 	:= Y_Gripper.bRetracted;
+GVL_PLC.Inputs.I506.1 	:= Y_Gripper.bExtended;
+Y_Gripper.bRetract 	:= GVL_PLC.Outputs.Q506.0;
+Y_Gripper.bExtend 	:= GVL_PLC.Outputs.Q506.1;
+
+// TODO: no address in xlsx for P_Camera (FB_Reader)
+// TODO: no address in xlsx for Y_CapsSource (FB_DeviceByte)]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

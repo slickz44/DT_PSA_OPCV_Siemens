@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_01" Id="{bee76962-c897-4aa3-8577-0f8981fbeba9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_01
+{region generated code}
+VAR_INPUT
+	P_Reader : FB_Reader;
+	Y_Gripper : FB_Cylinder;
+	Y_LaserMark : FB_DeviceByte;
+	Y_Platform : FB_Cylinder;
+	Y_ReaderWindow : FB_Cylinder;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	P_Reader();
+	Y_Gripper();
+	Y_LaserMark();
+	Y_Platform();
+	Y_ReaderWindow();
+{endregion}
+
+Mapping();
+
+	]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{de406497-ddcd-4aa6-82ad-891697901ad0}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{b135af46-5e51-4902-aa55-378231cbb916}">
+      <Implementation>
+        <ST><![CDATA[//Gripper
+GVL_PLC.Inputs.I101.0 := Y_Gripper.bRetracted;
+GVL_PLC.Inputs.I101.1 := Y_Gripper.bExtended;
+Y_Gripper.bExtend 	:= GVL_PLC.Outputs.Q101.1;
+
+//Platform
+GVL_PLC.Inputs.I102.0 	:= Y_Platform.bRetracted;
+GVL_PLC.Inputs.I102.1 	:= Y_Platform.bExtended;
+Y_Platform.bRetract 	:= GVL_PLC.Outputs.Q102.0;
+Y_Platform.bExtend 	:= GVL_PLC.Outputs.Q102.1;
+
+//ReaderWindow
+GVL_PLC.Inputs.I103.1 	:= Y_ReaderWindow.bExtended;
+Y_ReaderWindow.bExtend 	:= GVL_PLC.Outputs.Q103.1;
+
+// TODO: no address in xlsx for P_Reader (FB_Reader)
+// TODO: no address in xlsx for Y_LaserMark (FB_DeviceByte)]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

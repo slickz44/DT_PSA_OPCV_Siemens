@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <POU Name="FG_System" Id="{05ecf2eb-0e4a-4530-aa0c-07604436f137}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_System
+
+{region generated code}
+VAR_INPUT
+	B_SafetyDoor11 : FB_Lock;
+	B_SafetyDoor12 : FB_Lock;
+	B_SafetyDoor13 : FB_Lock;
+	B_SafetyDoor21 : FB_Lock;
+	B_SafetyDoor22 : FB_Lock;
+	B_SafetyDoor23 : FB_Lock;
+	H_ControlPanel : FB_Panel;
+	H_SignalTower : FB_Panel;
+	SS_EStop1 : FB_Button;
+	SS_EStop2 : FB_Button;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	B_SafetyDoor11();
+	B_SafetyDoor12();
+	B_SafetyDoor13();
+	B_SafetyDoor21();
+	B_SafetyDoor22();
+	B_SafetyDoor23();
+	H_ControlPanel();
+	H_SignalTower();
+	SS_EStop1();
+	SS_EStop2();
+{endregion}
+
+Mapping();
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{f92498df-2f7d-407f-a795-8681e0c73f2b}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{2f7629fd-0e87-4ebb-9bb1-5dc5c18b76d4}">
+      <Implementation>
+        <ST><![CDATA[H_ControlPanel.nControlData.0 := GVL_PLC.Outputs.Q0.1;
+H_ControlPanel.nControlData.2 := GVL_PLC.Outputs.Q0.3;
+H_ControlPanel.nControlData.3 := GVL_PLC.Outputs.Q0.4;
+H_ControlPanel.nControlData.4 := GVL_PLC.Outputs.Q0.5;
+H_ControlPanel.nControlData.5 := GVL_PLC.Outputs.Q0.6;
+H_ControlPanel.nControlData.6 := GVL_PLC.Outputs.Q0.7;
+
+GVL_PLC.Inputs.I0.1 := H_ControlPanel.nStatusData.0;
+GVL_PLC.Inputs.I0.2 := H_ControlPanel.nStatusData.1;
+GVL_PLC.Inputs.I0.3 := H_ControlPanel.nStatusData.2;
+GVL_PLC.Inputs.I0.4 := H_ControlPanel.nStatusData.3;
+GVL_PLC.Inputs.I0.5 := H_ControlPanel.nStatusData.4;
+GVL_PLC.Inputs.I0.6 := H_ControlPanel.nStatusData.5;
+GVL_PLC.Inputs.I0.7 := H_ControlPanel.nStatusData.6;
+
+H_SignalTower.nControlData.0 := GVL_PLC.Outputs.Q1.2;
+H_SignalTower.nControlData.1 := GVL_PLC.Outputs.Q1.1;
+H_SignalTower.nControlData.2 := GVL_PLC.Outputs.Q1.0;]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

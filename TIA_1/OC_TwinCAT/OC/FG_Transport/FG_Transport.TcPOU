@@ -1,0 +1,240 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_Transport" Id="{1a228305-b0f2-406a-9e1d-b7bb3646ef17}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_Transport
+
+{region generated code}
+VAR_INPUT
+	B_SafetyGate1 : FB_SensorBinary;
+	B_SafetyGate2 : FB_SensorBinary;
+	Index01_B_Detect : FB_SensorBinary;
+	Index01_B_Exit : FB_SensorBinary;
+	Index01_Y_Lift : FB_Cylinder;
+	Index01_Y_Stopper : FB_Cylinder;
+	Index02_B_Detect : FB_SensorBinary;
+	Index02_B_Exit : FB_SensorBinary;
+	Index02_Y_Lift : FB_Cylinder;
+	Index02_Y_Stopper : FB_Cylinder;
+	Index03_B_Detect : FB_SensorBinary;
+	Index03_B_Exit : FB_SensorBinary;
+	Index03_Y_Lift : FB_Cylinder;
+	Index03_Y_Stopper : FB_Cylinder;
+	Index04_B_Detect : FB_SensorBinary;
+	Index04_B_Exit : FB_SensorBinary;
+	Index04_Y_Lift : FB_Cylinder;
+	Index04_Y_Stopper : FB_Cylinder;
+	Index05_B_Detect : FB_SensorBinary;
+	Index05_B_Exit : FB_SensorBinary;
+	Index05_Y_Lift : FB_Cylinder;
+	Index05_Y_Stopper : FB_Cylinder;
+	Lift01_B_Detect : FB_SensorBinary;
+	Lift01_B_Exit : FB_SensorBinary;
+	Lift01_M_Conveyor : FB_Drive;
+	Lift01_Y_Lift : FB_Cylinder;
+	Lift02_B_Detect : FB_SensorBinary;
+	Lift02_B_Exit : FB_SensorBinary;
+	Lift02_M_Conveyor : FB_Drive;
+	Lift02_Y_Lift : FB_Cylinder;
+	Stopper01_B_Detect : FB_SensorBinary;
+	Stopper01_B_Exit : FB_SensorBinary;
+	Stopper01_Y_Stopper : FB_Cylinder;
+	Stopper02_B_Detect : FB_SensorBinary;
+	Stopper02_B_Exit : FB_SensorBinary;
+	Stopper02_Y_Stopper : FB_Cylinder;
+	Stopper03_B_Detect : FB_SensorBinary;
+	Stopper03_B_Exit : FB_SensorBinary;
+	Stopper03_Y_Stopper : FB_Cylinder;
+	Stopper04_B_Detect : FB_SensorBinary;
+	Stopper04_B_Exit : FB_SensorBinary;
+	Stopper04_Y_Stopper : FB_Cylinder;
+	Transport01_M_Conveyor : FB_Drive;
+	Transport02_M_Conveyor : FB_Drive;
+	Y_Gate1 : FB_Cylinder;
+	Y_Gate2 : FB_Cylinder;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	B_SafetyGate1();
+	B_SafetyGate2();
+	Index01_B_Detect();
+	Index01_B_Exit();
+	Index01_Y_Lift();
+	Index01_Y_Stopper();
+	Index02_B_Detect();
+	Index02_B_Exit();
+	Index02_Y_Lift();
+	Index02_Y_Stopper();
+	Index03_B_Detect();
+	Index03_B_Exit();
+	Index03_Y_Lift();
+	Index03_Y_Stopper();
+	Index04_B_Detect();
+	Index04_B_Exit();
+	Index04_Y_Lift();
+	Index04_Y_Stopper();
+	Index05_B_Detect();
+	Index05_B_Exit();
+	Index05_Y_Lift();
+	Index05_Y_Stopper();
+	Lift01_B_Detect();
+	Lift01_B_Exit();
+	Lift01_M_Conveyor();
+	Lift01_Y_Lift();
+	Lift02_B_Detect();
+	Lift02_B_Exit();
+	Lift02_M_Conveyor();
+	Lift02_Y_Lift();
+	Stopper01_B_Detect();
+	Stopper01_B_Exit();
+	Stopper01_Y_Stopper();
+	Stopper02_B_Detect();
+	Stopper02_B_Exit();
+	Stopper02_Y_Stopper();
+	Stopper03_B_Detect();
+	Stopper03_B_Exit();
+	Stopper03_Y_Stopper();
+	Stopper04_B_Detect();
+	Stopper04_B_Exit();
+	Stopper04_Y_Stopper();
+	Transport01_M_Conveyor();
+	Transport02_M_Conveyor();
+	Y_Gate1();
+	Y_Gate2();
+{endregion}
+
+Mapping();
+
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{6e770fd6-c41f-4ee9-9c0d-3a96a1be5f92}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{62ee953e-c687-4d6b-a096-748c09bae4e3}">
+      <Implementation>
+        <ST><![CDATA[Y_Gate1.bExtend := GVL_PLC.Outputs.Q1001.0;
+GVL_PLC.Inputs.I1001.0 := Y_Gate1.bRetracted;
+GVL_PLC.Inputs.I1001.1 := Y_Gate1.bExtended;
+
+Y_Gate2.bExtend := GVL_PLC.Outputs.Q1002.0;
+GVL_PLC.Inputs.I1002.0 := Y_Gate2.bRetracted;
+GVL_PLC.Inputs.I1002.1 := Y_Gate2.bExtended;
+
+//Index Unit 1
+GVL_PLC.Inputs.I1003.0 		:= Index01_B_Detect.bValue;
+GVL_PLC.Inputs.I1003.1 		:= Index01_B_Exit.bValue;
+GVL_PLC.Inputs.I1003.2 		:= Index01_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1003.3 		:= Index01_Y_Lift.bExtended;
+GVL_PLC.Inputs.I1003.4 		:= Index01_Y_Stopper.bRetracted;
+Index01_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1003.0;
+Index01_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1003.1;
+Index01_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1003.2;
+
+//Index Unit 2
+GVL_PLC.Inputs.I1004.0 		:= Index02_B_Detect.bValue;
+GVL_PLC.Inputs.I1004.1 		:= Index02_B_Exit.bValue;
+GVL_PLC.Inputs.I1004.2 		:= Index02_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1004.3 		:= Index02_Y_Lift.bExtended;
+GVL_PLC.Inputs.I1004.4 		:= Index02_Y_Stopper.bRetracted;
+Index02_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1004.0;
+Index02_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1004.1;
+Index02_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1004.2;
+
+//Index Unit 3
+GVL_PLC.Inputs.I1005.0 		:= Index03_B_Detect.bValue;
+GVL_PLC.Inputs.I1005.1 		:= Index03_B_Exit.bValue;
+GVL_PLC.Inputs.I1005.2 		:= Index03_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1005.3 		:= Index03_Y_Lift.bExtended;
+GVL_PLC.Inputs.I1005.4 		:= Index03_Y_Stopper.bRetracted;
+Index03_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1005.0;
+Index03_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1005.1;
+Index03_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1005.2;
+
+//Index Unit 4
+GVL_PLC.Inputs.I1006.0 		:= Index04_B_Detect.bValue;
+GVL_PLC.Inputs.I1006.1 		:= Index04_B_Exit.bValue;
+GVL_PLC.Inputs.I1006.2 		:= Index04_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1006.3 		:= Index04_Y_Lift.bExtended;
+GVL_PLC.Inputs.I1006.4 		:= Index04_Y_Stopper.bRetracted;
+Index04_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1006.0;
+Index04_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1006.1;
+Index04_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1006.2;
+
+//Index Unit 5
+GVL_PLC.Inputs.I1007.0 		:= Index05_B_Detect.bValue;
+GVL_PLC.Inputs.I1007.1 		:= Index05_B_Exit.bValue;
+GVL_PLC.Inputs.I1007.2 		:= Index05_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1007.3 		:= Index05_Y_Lift.bExtended;
+GVL_PLC.Inputs.I1007.4 		:= Index05_Y_Stopper.bRetracted;
+Index05_Y_Lift.bRetract 	:= GVL_PLC.Outputs.Q1007.0;
+Index05_Y_Lift.bExtend 		:= GVL_PLC.Outputs.Q1007.1;
+Index05_Y_Stopper.bExtend 	:= GVL_PLC.Outputs.Q1007.2;
+
+//Stopper 1
+GVL_PLC.Inputs.I1008.0 		:= Stopper01_B_Detect.bValue;
+GVL_PLC.Inputs.I1008.1 		:= Stopper01_B_Exit.bValue;
+GVL_PLC.Inputs.I1008.4 		:= Stopper01_Y_Stopper.bRetracted;
+Stopper01_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1008.2;
+
+//Stopper 2
+GVL_PLC.Inputs.I1009.0 		:= Stopper02_B_Detect.bValue;
+GVL_PLC.Inputs.I1009.1 		:= Stopper02_B_Exit.bValue;
+GVL_PLC.Inputs.I1009.4 		:= Stopper02_Y_Stopper.bRetracted;
+Stopper02_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1009.2;
+
+//Stopper 3
+GVL_PLC.Inputs.I1010.0 		:= Stopper03_B_Detect.bValue;
+GVL_PLC.Inputs.I1010.1 		:= Stopper03_B_Exit.bValue;
+GVL_PLC.Inputs.I1010.4 		:= Stopper03_Y_Stopper.bRetracted;
+Stopper03_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1010.2;
+
+//Stopper 4
+GVL_PLC.Inputs.I1011.0 		:= Stopper04_B_Detect.bValue;
+GVL_PLC.Inputs.I1011.1 		:= Stopper04_B_Exit.bValue;
+GVL_PLC.Inputs.I1011.4 		:= Stopper04_Y_Stopper.bRetracted;
+Stopper04_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1011.2;
+
+//Lift 1
+GVL_PLC.Inputs.I1012.0 			:= Lift01_B_Detect.bValue;
+GVL_PLC.Inputs.I1012.1 			:= Lift01_B_Exit.bValue;
+GVL_PLC.Inputs.I1012.2 			:= Lift01_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1012.3 			:= Lift01_Y_Lift.bExtended;
+Lift01_Y_Lift.bRetract 			:= GVL_PLC.Outputs.Q1012.0;
+Lift01_Y_Lift.bExtend 			:= GVL_PLC.Outputs.Q1012.1;
+Lift01_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1012.2;
+Lift01_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1012.3;
+
+//Lift 2
+GVL_PLC.Inputs.I1013.0 			:= Lift02_B_Detect.bValue;
+GVL_PLC.Inputs.I1013.1 			:= Lift02_B_Exit.bValue;
+GVL_PLC.Inputs.I1013.2 			:= Lift02_Y_Lift.bRetracted;
+GVL_PLC.Inputs.I1013.3 			:= Lift02_Y_Lift.bExtended;
+Lift02_Y_Lift.bRetract 			:= GVL_PLC.Outputs.Q1013.0;
+Lift02_Y_Lift.bExtend 			:= GVL_PLC.Outputs.Q1013.1;
+Lift02_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1013.2;
+Lift02_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1013.3;
+
+//Transport 1
+Transport01_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1014.0;
+Transport01_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1014.1;
+
+//Transport 2
+Transport02_M_Conveyor.nControl.1 	:= GVL_PLC.Outputs.Q1015.0;
+Transport02_M_Conveyor.nControl.0 	:= GVL_PLC.Outputs.Q1015.1;]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

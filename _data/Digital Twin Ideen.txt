@@ -1,0 +1,8 @@
+FG04:
+- hier prüft der Zylinder ob das werkstück umgesetzt wurde. was passiert wenn das Werkstück in fg03 nicht umgesetzt wurde oder fehlt. kann der Zylinder den endschalter überfahren, damit es in der sps eine Störung oder nio verhalten ausgelöst werden kann?
+
+FG05:
+- sobald die kappe gegriffen wird, verschwindet die kollisionserkennung und die anstehenden kappen rücken nach. kann die kollisionserkennung erhalten bleiben, bis die gegriffene kappe weg ist?
+- können die kappen in unterschiedlichen abständen nachrücken, damit auch zuführengpässe simuliert werden? 
+- wäre es möglich die das der linearförderer und der topf einzeln zur förderung der kapseln angesteuert werden können? zb wenn der linearförderer läuft, wenn die kapsel nach vorne in den vereinzeler gefördert und nur wenn der topf angesteuert wird, werden neue kapseln im linearförderer generiert (falls linearförderer noch nicht voll ist). mit dem capssourcestopper könnte man den linearförderer öffnen und die kapseln können dann vorgefördert werden damit sie herausfallen und (gelöscht werden). so könnte man das leerfahren simulieren.
+

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_04" Id="{06f8125c-af48-4619-894e-8922d83c941f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_04
+{region generated code}
+VAR_INPUT
+	B_NIO : FB_SensorBinary;
+	Y_AxisZ : FB_Cylinder;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	B_NIO();
+	Y_AxisZ();
+{endregion}
+
+Mapping();
+
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{9cd17ed3-e823-4000-8936-dbfb9d9e2b67}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{edab1274-6099-41da-a10c-63392ff253a8}">
+      <Implementation>
+        <ST><![CDATA[//Axis Z
+GVL_PLC.Inputs.I401.1 	:= Y_AxisZ.bExtended;
+Y_AxisZ.bExtend 	:= GVL_PLC.Outputs.Q401.1;
+
+// TODO: no address in xlsx for B_NIO (FB_SensorBinary)]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

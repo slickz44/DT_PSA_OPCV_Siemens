@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <GVL Name="GVL_PLC" Id="{cba0707f-7bea-4d3b-a051-86bf9de72fd3}">
+    <Declaration><![CDATA[{attribute 'linkalways'}
+{attribute 'qualified_only'}
+{attribute 'subsequent'}
+{attribute 'pack_mode' := '1'}
+VAR_GLOBAL
+	Inputs : ST_PLCInputs;
+	Outputs : ST_PLCOutputs;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

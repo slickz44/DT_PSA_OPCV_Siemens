@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FG_03" Id="{c1dfb1cc-e4d0-450c-b656-8fff2eca6dfa}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FG_03
+{region generated code}
+VAR_INPUT
+	Y_AxisR1 : FB_Cylinder;
+	Y_AxisX1 : FB_Cylinder;
+	Y_AxisX2 : FB_Cylinder;
+	Y_AxisY1 : FB_Cylinder;
+	Y_AxisY2 : FB_Cylinder;
+	Y_Gripper1 : FB_Cylinder;
+	Y_Gripper2 : FB_Cylinder;
+END_VAR
+{endregion}]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[{region generated code}
+	InitRun();
+	Y_AxisR1();
+	Y_AxisX1();
+	Y_AxisX2();
+	Y_AxisY1();
+	Y_AxisY2();
+	Y_Gripper1();
+	Y_Gripper2();
+{endregion}
+
+Mapping();
+
+]]></ST>
+    </Implementation>
+    <Method Name="InitRun" Id="{fa2d2588-056f-46ac-a38d-8cfe8e8090d7}">
+      <Declaration><![CDATA[METHOD InitRun
+{region generated code}
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR
+{endregion}]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{region generated code}
+	IF NOT bInitRun THEN RETURN; END_IF
+	bInitRun := FALSE;
+{endregion}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Mapping" Id="{2ce11f03-d5c5-409c-b06c-e8521210c0b5}">
+      <Implementation>
+        <ST><![CDATA[//Axis R1
+GVL_PLC.Inputs.I301.0 	:= Y_AxisR1.bRetracted;
+GVL_PLC.Inputs.I301.1 	:= Y_AxisR1.bExtended;
+Y_AxisR1.bRetract 	:= GVL_PLC.Outputs.Q301.0;
+Y_AxisR1.bExtend 	:= GVL_PLC.Outputs.Q301.1;
+
+//Axis X1
+GVL_PLC.Inputs.I302.0 	:= Y_AxisX1.bRetracted;
+GVL_PLC.Inputs.I302.1 	:= Y_AxisX1.bExtended;
+Y_AxisX1.bRetract 	:= GVL_PLC.Outputs.Q302.0;
+Y_AxisX1.bExtend 	:= GVL_PLC.Outputs.Q302.1;
+
+//Axis Y1
+GVL_PLC.Inputs.I303.0 	:= Y_AxisY1.bRetracted;
+GVL_PLC.Inputs.I303.1 	:= Y_AxisY1.bExtended;
+Y_AxisY1.bRetract 	:= GVL_PLC.Outputs.Q303.0;
+Y_AxisY1.bExtend 	:= GVL_PLC.Outputs.Q303.1;
+
+//Axis X2
+GVL_PLC.Inputs.I304.0 	:= Y_AxisX2.bRetracted;
+GVL_PLC.Inputs.I304.1 	:= Y_AxisX2.bExtended;
+Y_AxisX2.bRetract 	:= GVL_PLC.Outputs.Q304.0;
+Y_AxisX2.bExtend 	:= GVL_PLC.Outputs.Q304.1;
+
+//Axis Y2
+GVL_PLC.Inputs.I305.0 	:= Y_AxisY2.bRetracted;
+GVL_PLC.Inputs.I305.1 	:= Y_AxisY2.bExtended;
+Y_AxisY2.bRetract 	:= GVL_PLC.Outputs.Q305.0;
+Y_AxisY2.bExtend 	:= GVL_PLC.Outputs.Q305.1;
+
+//Gripper 1
+GVL_PLC.Inputs.I306.0 	:= Y_Gripper1.bRetracted;
+GVL_PLC.Inputs.I306.1 	:= Y_Gripper1.bExtended;
+Y_Gripper1.bRetract 	:= GVL_PLC.Outputs.Q306.0;
+Y_Gripper1.bExtend 	:= GVL_PLC.Outputs.Q306.1;
+
+//Gripper 2
+GVL_PLC.Inputs.I307.0 	:= Y_Gripper2.bRetracted;
+GVL_PLC.Inputs.I307.1 	:= Y_Gripper2.bExtended;
+Y_Gripper2.bRetract 	:= GVL_PLC.Outputs.Q307.0;
+Y_Gripper2.bExtend 	:= GVL_PLC.Outputs.Q307.1;]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>
