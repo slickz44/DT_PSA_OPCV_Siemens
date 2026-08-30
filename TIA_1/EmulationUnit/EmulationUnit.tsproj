@@ -2,7 +2,7 @@
 <TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.25">
 	<Project ProjectGUID="{B9F043B3-1842-4DA0-8A5E-4A0187B6B825}" Target64Bit="true" ShowHideConfigurations="#x3c7">
 		<System>
-			<Settings MaxCpus="20" NonWinCpus="1" CoreBoostActive="true" PCoreAffinity="255" ECoreAffinity="1048320">
+			<Settings MaxCpus="64" NonWinCpus="45">
 				<Cpu CpuId="19"/>
 				<IoIdleTask Priority="6"/>
 			</Settings>
@@ -23,7 +23,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{3349BDD1-C1B4-41A8-B54C-DC47D31B3B38}" Name="SIM_1" PrjFilePath="SIM_1\SIM_1.plcproj" TmcFilePath="SIM_1\SIM_1.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{F8CA6E10-EA46-BED2-306C-1F95D54F759B}" TmcPath="SIM_1\SIM_1.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4BE4962F-4AB2-39BB-52A2-799D6AD134B5}" TmcPath="SIM_1\SIM_1.tmc">
 					<Name>SIM_1 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">

@@ -145,7 +145,19 @@ H_SignalTower.nControlData.3	:= GVL_PLC.Outputs.Q1.1;	// GREEN  "Automatik laeuf
 //   ... and so on for 12, 13, 21, 22, 23.
 // Until these exist the cell has no guard monitoring and no way to release a
 // door for maintenance. See _docs/reference/fg-system-safety.md for who owns
-// which half of that decision.]]></ST>
+// which half of that decision.
+
+
+GVL_PLC.Inputs.I50.0 :=  NOT SS_EStop1.bValue;
+SS_EStop1.bEnable := GVL_PLC.Outputs.Q50.0;
+
+GVL_PLC.Inputs.I50.2 :=  NOT SS_EStop2.bValue;
+SS_EStop2.bEnable := GVL_PLC.Outputs.Q50.2;
+
+
+GVL_PLC.Inputs.I60.0 := B_SafetyDoor11.bClosed;
+GVL_PLC.Inputs.I60.1 := B_SafetyDoor11.bLocked;
+B_SafetyDoor11.bLock := GVL_PLC.Outputs.Q60.0;]]></ST>
       </Implementation>
     </Action>
   </POU>

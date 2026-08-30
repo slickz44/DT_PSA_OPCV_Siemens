@@ -231,8 +231,8 @@ GVL_PLC.Inputs.I1012.2	:= Lift01_Y_Lift.bRetracted;		// "Heber ist unten"
 GVL_PLC.Inputs.I1012.3	:= Lift01_Y_Lift.bExtended;		// "Heber ist oben"
 Lift01_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1012.0;		// "Heber senken"
 Lift01_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1012.1;		// "Heber heben"
-Lift01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1012.2;		// _Plus  "Antrieb vorwaerts"
-Lift01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1012.3;		// _Minus "Antrieb rueckwaerts"
+Lift01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1012.3;		// _Plus  "Antrieb vorwaerts"
+Lift01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1012.2;		// _Minus "Antrieb rueckwaerts"
 
 // --- Lift02 - detect, exit, lift and carriage belt on byte 1013 --------
 GVL_PLC.Inputs.I1013.0	:= Lift02_B_Detect.bValue;
@@ -241,16 +241,16 @@ GVL_PLC.Inputs.I1013.2	:= Lift02_Y_Lift.bRetracted;		// "Heber ist unten"
 GVL_PLC.Inputs.I1013.3	:= Lift02_Y_Lift.bExtended;		// "Heber ist oben"
 Lift02_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1013.0;		// "Heber senken"
 Lift02_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1013.1;		// "Heber heben"
-Lift02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1013.2;		// _Plus  "Antrieb vorwaerts"
-Lift02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1013.3;		// _Minus "Antrieb rueckwaerts"
+Lift02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1013.3;		// _Plus  "Antrieb vorwaerts"
+Lift02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1013.2;		// _Minus "Antrieb rueckwaerts"
 
 // --- Transport01 - the level 1 circulation belt, byte 1014 -------------------
-Transport01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1014.0;		// _Plus  "Antrieb vorwaerts"
-Transport01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1014.1;		// _Minus "Antrieb rueckwaerts"
+Transport01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1014.1;		// _Plus  "Antrieb vorwaerts"
+Transport01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1014.0;		// _Minus "Antrieb rueckwaerts"
 
 // --- Transport02 - the level 2 circulation belt, byte 1015 -------------------
-Transport02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1015.0;		// _Plus  "Antrieb vorwaerts"
-Transport02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1015.1;		// _Minus "Antrieb rueckwaerts"
+Transport02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1015.1;		// _Plus  "Antrieb vorwaerts"
+Transport02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1015.0;		// _Minus "Antrieb rueckwaerts"
 
 // TODO: NO INPUT ADDRESS IN PLCTags_FG_Transport.xlsx for ANY of the four drives'
 // running feedback. Every FB_Drive publishes nStatus.6 - "moving", written every
