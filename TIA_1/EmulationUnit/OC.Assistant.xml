@@ -4,7 +4,7 @@
     <Plugin Name="PLC" Type="PlcSimAdvanced" ChannelType="TcAdsChannel" InputSize="1024" OutputSize="1024">
       <Parameter>
         <AutoStart>true</AutoStart>
-        <PlcName>PLC_1</PlcName>
+        <PlcName>DT_PSA_OPCV</PlcName>
         <Identifier>1</Identifier>
         <CycleTime>10</CycleTime>
         <InputAddress>0-1023</InputAddress>
