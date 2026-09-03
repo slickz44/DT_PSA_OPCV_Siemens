@@ -101,9 +101,9 @@ Y_AxisZ2.bExtend	:= GVL_PLC.Outputs.Q504.1;
 // THE TABLE HAS NO Y_CapsSourceStopper_InWork, so bExtended is not published and
 // the control PLC cannot see the stopper fully open - only that it has left the
 // singulating position. Add %I505.1 to close that.
-GVL_PLC.Inputs.I505.0	:= Y_CapsSourceStopper.bRetracted;
-Y_CapsSourceStopper.bRetract	:= GVL_PLC.Outputs.Q505.0;
-Y_CapsSourceStopper.bExtend	:= GVL_PLC.Outputs.Q505.1;
+GVL_PLC.Inputs.I505.0	:= Y_CapsSourceStopper.bExtended;
+Y_CapsSourceStopper.bRetract	:= GVL_PLC.Outputs.Q505.1;
+Y_CapsSourceStopper.bExtend	:= GVL_PLC.Outputs.Q505.0;
 
 // --- Y_Gripper - double solenoid --------------------------------------------
 // .bExtended is jaws closed, on a cap or on nothing. Only B_Detect witnesses a
