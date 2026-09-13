@@ -32,7 +32,6 @@ END_VAR
 ]]></ST>
       </Implementation>
     </Method>
-  
     <Action Name="Mapping" Id="{49397cc5-ad1e-4523-ad4e-30fee3396507}">
       <Implementation>
         <ST><![CDATA[// ============================================================================
@@ -58,12 +57,12 @@ P_Camera.nExpectedData := 240;
 //   OUT bit 0 Enable   bit 1 Trigger
 //   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
 //
-//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
-//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
-//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
-//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
-//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
-//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;]]></ST>
+   P_Camera.bEnable  := GVL_PLC.Outputs.Q200.0;
+   P_Camera.bTrigger := GVL_PLC.Outputs.Q200.1;
+   GVL_PLC.Inputs.I200.0 := P_Camera.bReady;
+   GVL_PLC.Inputs.I200.1 := P_Camera.bBusy;
+   GVL_PLC.Inputs.I200.2 := P_Camera.bResultValid;
+   GVL_PLC.Inputs.I200.3 := P_Camera.bResultOK;]]></ST>
       </Implementation>
     </Action>
   </POU>
