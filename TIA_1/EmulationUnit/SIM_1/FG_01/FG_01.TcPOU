@@ -109,13 +109,13 @@ Y_ReaderWindow.bExtend	:= GVL_PLC.Outputs.Q103.1;
 //
 // THE COIL IS %Q100x.1, NOT %Q100x.0. The previous mapping drove bit 0, which is
 // not a tag in the table at all, so the gates never closed.
-Y_Gate1.bExtend	:= GVL_PLC.Outputs.Q1001.1;
-GVL_PLC.Inputs.I1001.0	:= Y_Gate1.bRetracted;
-GVL_PLC.Inputs.I1001.1	:= Y_Gate1.bExtended;
+Y_Gate1.bExtend	:= GVL_PLC.Outputs.Q104.1;
+GVL_PLC.Inputs.I104.0	:= Y_Gate1.bRetracted;
+GVL_PLC.Inputs.I104.1	:= Y_Gate1.bExtended;
 
-Y_Gate2.bExtend	:= GVL_PLC.Outputs.Q1002.1;
-GVL_PLC.Inputs.I1002.0	:= Y_Gate2.bRetracted;
-GVL_PLC.Inputs.I1002.1	:= Y_Gate2.bExtended;
+Y_Gate2.bExtend	:= GVL_PLC.Outputs.Q105.1;
+GVL_PLC.Inputs.I105.0	:= Y_Gate2.bRetracted;
+GVL_PLC.Inputs.I105.1	:= Y_Gate2.bExtended;
 
 // --- P_Camera - the identify read -------------------------------------------
 // What the part must be carrying. FG_01 is the identify station: the twin's
@@ -131,20 +131,19 @@ P_Camera.nExpectedData := 60;
 // Four bits are needed and the bit roles are fixed by FB_AbstractCamera:
 //   OUT bit 0 Enable   bit 1 Trigger
 //   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
-// Add one input byte and one output byte to the table, then:
-//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
-//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
-//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
-//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
-//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
-//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;
-// Until then the station cannot read a part and FG_01 cannot run.
+   P_Camera.bEnable  := GVL_PLC.Outputs.Q108.0;
+   P_Camera.bTrigger := GVL_PLC.Outputs.Q108.1;
+   GVL_PLC.Inputs.I108.0 := P_Camera.bReady;
+   GVL_PLC.Inputs.I108.1 := P_Camera.bBusy;
+   GVL_PLC.Inputs.I108.2 := P_Camera.bResultValid;
+   GVL_PLC.Inputs.I108.3 := P_Camera.bResultOK;
+
 
 // TODO: NO ADDRESS IN PLCTags_FG01.xlsx for Y_LaserMark (FB_DeviceByte).
 // One control byte out, one status byte back; only control bit 0 is used - held
 // high for 1 s it applies the mark - and there are NO status bits, so the PLC
 // gets no confirmation that the laser fired. Needs one output byte:
-//   Y_LaserMark.nControlData.0 := GVL_PLC.Outputs.Q<n>.0;
+   Y_LaserMark.nControlData.0 := GVL_PLC.Outputs.Q107.0;
 
 // TODO: NO ADDRESS IN PLCTags_FG01.xlsx for B_SafetyGate1 / B_SafetyGate2
 // (FB_SensorBinary). These are the independent gate-position monitors the laser
