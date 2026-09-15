@@ -142,13 +142,12 @@ P_Camera.nExpectedData := 810;
 // Bit roles are fixed by FB_AbstractCamera and identical in FG_01/02/05:
 //   OUT bit 0 Enable   bit 1 Trigger
 //   IN  bit 0 Ready    bit 1 Busy   bit 2 ResultValid   bit 3 ResultOK
-//   P_Camera.bEnable  := GVL_PLC.Outputs.Q<n>.0;
-//   P_Camera.bTrigger := GVL_PLC.Outputs.Q<n>.1;
-//   GVL_PLC.Inputs.I<n>.0 := P_Camera.bReady;
-//   GVL_PLC.Inputs.I<n>.1 := P_Camera.bBusy;
-//   GVL_PLC.Inputs.I<n>.2 := P_Camera.bResultValid;
-//   GVL_PLC.Inputs.I<n>.3 := P_Camera.bResultOK;
-// The read comes FIRST in this station's cycle, so without it FG_05 cannot start.
+   P_Camera.bEnable  := GVL_PLC.Outputs.Q508.0;
+   P_Camera.bTrigger := GVL_PLC.Outputs.Q508.1;
+   GVL_PLC.Inputs.I508.0 := P_Camera.bReady;
+   GVL_PLC.Inputs.I508.1 := P_Camera.bBusy;
+   GVL_PLC.Inputs.I508.2 := P_Camera.bResultValid;
+   GVL_PLC.Inputs.I508.3 := P_Camera.bResultOK;
 
 // TODO: NO ADDRESS IN PLCTags_FG05.xlsx for B_Detect (FB_SensorBinary).
 // Cap held in the gripper's JAWS - the grip witness. FG_05's reset branches on
