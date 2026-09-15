@@ -108,12 +108,8 @@ H_ControlPanel.nControlData.6	:= GVL_PLC.Outputs.Q0.7;	// BT7 "Grundstellungsfah
 // lit the tower.
 H_SignalTower.nControlData.0	:= GVL_PLC.Outputs.Q1.3;	// RED    "Stoerung"
 H_SignalTower.nControlData.1	:= GVL_PLC.Outputs.Q1.2;	// YELLOW "Einrichten aktiv"
+H_SignalTower.nControlData.2    := GVL_PLC.Outputs.Q1.4;	// BLUE "Automatik stoppt"
 H_SignalTower.nControlData.3	:= GVL_PLC.Outputs.Q1.1;	// GREEN  "Automatik laeuft"
-
-// BLUE is bit 2 and has NO Siemens tag. The machine's indication contract uses it
-// for Low Material / Material Exhausted - see _docs/reference/state-lamp.md - and
-// FG_System exposes those inputs but never sets them, so an unmapped blue lamp
-// loses nothing today. Add %Q1.4 if the material model ever becomes real.
 
 // TODO: BT8_ImmediateStop %I1.0 / BT8_ImmediateStopLight %Q1.0 HAVE NO TWIN
 // SOURCE. The Siemens panel is seven controls and BT8 is not one of them, so
@@ -130,10 +126,12 @@ H_SignalTower.nControlData.3	:= GVL_PLC.Outputs.Q1.1;	// GREEN  "Automatik laeuf
 // value is INVERTED on the way in, so the PLC reads a real NC mushroom - TRUE
 // while healthy, FALSE while latched - and FG_System sets Inverted := TRUE to
 // match. Do the same here, and do not drop the NOT without clearing that too:
-//   GVL_PLC.Inputs.I<n>.<b> := NOT SS_EStop1.bValue;
-//   GVL_PLC.Inputs.I<n>.<b> := NOT SS_EStop2.bValue;
-//   SS_EStop1.bEnable := GVL_PLC.Outputs.Q<n>.<b>;   // bEnable IS the lamp
-//   SS_EStop2.bEnable := GVL_PLC.Outputs.Q<n>.<b>;
+GVL_PLC.Inputs.I50.0 :=  NOT SS_EStop1.bValue;
+GVL_PLC.Inputs.I51.0 :=  NOT SS_EStop1.bValue;
+GVL_PLC.Inputs.I50.1 :=  NOT SS_EStop2.bValue;
+GVL_PLC.Inputs.I51.1 :=  NOT SS_EStop2.bValue;
+SS_EStop1.bEnable := GVL_PLC.Outputs.Q0.0;
+SS_EStop2.bEnable := GVL_PLC.Outputs.Q0.2;
 
 // TODO: NO ADDRESS IN PLCTags_ControlPanel.xlsx for the six B_SafetyDoor*
 // (FB_Lock). Each needs TWO inputs and ONE output - closed, locked, and the lock
@@ -146,14 +144,6 @@ H_SignalTower.nControlData.3	:= GVL_PLC.Outputs.Q1.1;	// GREEN  "Automatik laeuf
 // Until these exist the cell has no guard monitoring and no way to release a
 // door for maintenance. See _docs/reference/fg-system-safety.md for who owns
 // which half of that decision.
-
-
-GVL_PLC.Inputs.I50.0 :=  NOT SS_EStop1.bValue;
-SS_EStop1.bEnable := GVL_PLC.Outputs.Q50.0;
-
-GVL_PLC.Inputs.I50.2 :=  NOT SS_EStop2.bValue;
-SS_EStop2.bEnable := GVL_PLC.Outputs.Q50.2;
-
 
 GVL_PLC.Inputs.I60.0 := B_SafetyDoor11.bClosed;
 GVL_PLC.Inputs.I60.1 := B_SafetyDoor11.bLocked;
