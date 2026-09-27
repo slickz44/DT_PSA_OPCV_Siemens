@@ -12,7 +12,7 @@ The Siemens walkthrough is in preparation. The video link will be added here whe
 
 The Siemens implementation of [DT_PSA_OPCV](https://github.com/Preliy/DT_PSA_OPCV) — the Digital Twin for Laser Welding & Assembly System (PSA OPCV).
 
-**Maintained by [Andreas Fast (slickz44)](https://github.com/slickz44).** This module continues the Siemens repository originally provided by Viktor Gaponenko. The Unity digital twin remains in the main repository; this repository provides the Siemens PLC/HMI project and the associated emulation files.
+**Maintained by [Andreas Fast (slickz44)](https://github.com/slickz44).** This repository provides the Siemens PLC/HMI project and emulation files. The digital twin is available as a standalone Windows build; running it does not require Unity or a clone of the main repository.
 
 The focus is **modularization and standardization**: a consistent structure for machine control, station control, actuators, step sequences and HMI operation. Explore the program against a simulated machine and follow how the same control pattern is applied across its function groups.
 
@@ -26,11 +26,11 @@ Controls engineers exploring a reusable PLC structure, students learning how mac
 
 **Want all Siemens files?** [Download this repository as a ZIP](https://github.com/slickz44/DT_PSA_OPCV_Siemens/archive/refs/heads/master.zip) and extract it. While this repository is private, sign in with an account that has access.
 
-**Want to connect it to the digital twin?** Download or clone the main project and this Siemens module as shown below, then follow the [Siemens setup guide](_docs/setup.md). Siemens engineering software and the required runtime components are installed separately.
+**Want to run virtual commissioning?** Download the **Windows build – demo launcher** from the [digital-twin releases](https://github.com/Preliy/DT_PSA_OPCV/releases/latest), extract it, run `DT_PSA_OPCV.exe`, select **Siemens** (`VC_Demo_1_Siemens_1`) and click **Start**. Unity is not required. Follow the [Siemens setup guide](_docs/setup.md) to prepare PLCSIM Advanced, start the supplied Beckhoff EmulationUnit in RUN and connect it using OC Assistant with the PLCSIM Advanced plugin.
 
-## How this is used
+## Optional: work with the Unity source project
 
-This is a module of the main repository. Clone it into the main repository's root as `Siemens/`:
+Only if you want to edit the Unity project, clone this module into the main repository's root as `Siemens/`:
 
 ```bash
 git clone https://github.com/Preliy/DT_PSA_OPCV.git
@@ -83,19 +83,25 @@ The architecture illustration explains the intended structure; the retrieved TIA
 
 The HMI overview shows the machine, function groups FG 1–5 and transport together. It supports inspecting their operating and status indications. The supplied screenshots use German HMI labels.
 
+## How the tools communicate
+
+![Siemens communication overview](_docs/images/OC_Base_Siemens.svg)
+
+The digital twin exchanges simulation data with the TwinCAT **EmulationUnit (SIM_1)**. **OC Assistant** connects the emulation environment to **PLCSIM Advanced** through its **PLCSIM Advanced plugin**. The Siemens control program is engineered in **TIA Portal** and runs in PLCSIM Advanced. Keep OC Assistant running while using this connection.
+
+The diagram also includes Unity project synchronization and engineering functions. These apply when editing the twin; the Windows build contains the prepared Siemens scene.
+
 ## Run the project
 
-1. Obtain the main digital twin and this Siemens module.
-2. Retrieve `TIA_1/Archive/DT_PSA_OPCV.zap19` in TIA Portal V19.
-3. Compile the PLC and HMI and resolve any missing engineering components.
-4. Prepare the PLCSIM Advanced instance and the emulation project.
-5. Open the corresponding Siemens scene in the digital twin and check communication.
-6. Start the HMI simulation and verify the machine's initial state before operation.
+1. Download this Siemens repository, the digital-twin Windows build, [OC Assistant](https://github.com/OpenCommissioning/OC_Assistant) and its [PLCSIM Advanced plugin](https://github.com/OpenCommissioning/OC_Assistant_PlcSimAdvanced).
+2. Copy the unpacked plugin folder into the Assistant's `Plugins` directory, next to `OC.Assistant.exe`.
+3. Retrieve the TIA V19 archive, compile the PLC/HMI and load the PLC program into the `DT_PSA_OPCV` PLCSIM Advanced instance.
+4. Run `DT_PSA_OPCV.exe`, select **Siemens** and click **Start**.
+5. Open `TIA_1/EmulationUnit/EmulationUnit.sln` in TwinCAT and start the EmulationUnit PLC in **RUN**.
+6. Start OC Assistant and click **connect** to connect the EmulationUnit solution.
+7. Check communication, start the HMI simulation and verify the machine's initial state before operation.
 
-See the [Siemens setup guide](_docs/setup.md) for the observed software baseline and connection settings.
-
-**Documentation status:** The screenshots show the demonstration environment. These instructions and the supplied archive have not yet been validated as a complete clean-install procedure. The exact matching twin revision, dependency versions and startup sequence remain to be recorded.
-
+See the [Siemens setup guide](_docs/setup.md) for illustrated instructions and connection settings. The workflow follows the demonstrated setup, including the v1.1.0 Windows launcher; a full clean-install compatibility test across all tool versions has not yet been recorded.
 ## Relationship to the main project
 
 Machine behavior — sequences, interlocks, fault codes and the reset model — is defined by the main project's [reference documentation](https://github.com/Preliy/DT_PSA_OPCV/tree/master/_docs/reference). This module documents the Siemens implementation of those contracts.
@@ -104,12 +110,11 @@ The main project's [compatibility information](https://github.com/Preliy/DT_PSA_
 
 ## Contributing
 
-For Siemens-specific questions and improvements, use this repository's Issues and pull requests. For changes to the shared machine or Unity twin, start with the main project's [contribution guide](https://github.com/Preliy/DT_PSA_OPCV/blob/master/CONTRIBUTING.md).
+Ideas for improving the TIA Portal machine control are welcome. Open an issue to share a suggestion, ask a question or discuss a possible improvement.
 
 ## Credits and license
 
-- **Andreas Fast (slickz44)** — Siemens module maintainer and Siemens PLC/HMI contribution.
-- **Viktor Gaponenko** — original repository foundation and the main digital-twin project.
+- **Viktor Gaponenko** — the digital-twin project.
 - **Open Commissioning** — digital-twin and emulation framework.
 
 [GPL-3.0](https://github.com/Preliy/DT_PSA_OPCV/blob/master/LICENSE). Original attribution retained: Copyright © 2026 Viktor Gaponenko. Existing third-party notices continue to apply to their respective components.

@@ -1,46 +1,82 @@
 # Siemens setup guide
 
-## 1. Prepare the software
+Run the digital twin as a Windows application and connect the Siemens PLC/HMI project through TwinCAT and Open Commissioning. **Unity and a clone of the main digital-twin repository are not required to run the Windows build.**
 
-The available files and demonstration screenshots identify the following environment. This is an observed baseline, not a tested compatibility matrix.
+## How the tools communicate
 
-| Component | Evidence in the supplied material |
+![Communication between the digital twin, EmulationUnit, OC Assistant and Siemens tools](images/OC_Base_Siemens.svg)
+
+The runtime communication chain shown in the diagram is:
+
+**Digital twin ↔ TwinCAT EmulationUnit (SIM_1) ↔ OC Assistant / PLCSIM Advanced plugin ↔ PLCSIM Advanced.**
+
+TIA Portal configures, compiles and downloads the Siemens control program into PLCSIM Advanced. The EmulationUnit provides simulation-side behavior and interfaces. OC Assistant manages the plugin connection that lets the simulated Siemens PLC exchange data with this environment. Keep the Assistant running during virtual commissioning.
+
+The diagram also shows engineering functions such as importing components and synchronizing a Unity project. These apply when editing the twin; the Windows build already contains the prepared Siemens scene.
+
+## 1. Download and prepare the tools
+
+| Component | What to obtain |
 |---|---|
-| TIA Portal V19 | `.zap19` archive containing `DT_PSA_OPCV.ap19` |
-| S7-PLCSIM Advanced V6.0 Update 1 | Demonstration screenshot |
-| WinCC Runtime Advanced | Demonstration screenshot; exact version to be confirmed |
-| S7-1500 / CPU 1516F-3 PN/DP | Demonstration screenshot |
-| TwinCAT 3.1.4026 | EmulationUnit project metadata; files contain differing patch versions |
-| Open Commissioning | Referenced by the emulation project; obtain the required dependencies separately |
-| Unity digital twin | Separate [DT_PSA_OPCV repository](https://github.com/Preliy/DT_PSA_OPCV); matching revision to be confirmed |
+| Siemens project and EmulationUnit | [Download this repository as a ZIP](https://github.com/slickz44/DT_PSA_OPCV_Siemens/archive/refs/heads/master.zip) and extract it |
+| Digital twin | [Windows build – demo launcher](https://github.com/Preliy/DT_PSA_OPCV/releases/latest), under **Assets**; choose the Windows build rather than **Source code** |
+| OC Assistant | Follow the Assistant download link in [OC_Assistant](https://github.com/OpenCommissioning/OC_Assistant) |
+| PLCSIM Advanced plugin | Obtain the plugin from [OC_Assistant_PlcSimAdvanced](https://github.com/OpenCommissioning/OC_Assistant_PlcSimAdvanced) |
+| Siemens tools | TIA Portal V19, PLCSIM Advanced and the WinCC components required by the project |
+| Beckhoff tools | TwinCAT engineering/runtime environment and the EmulationUnit's referenced libraries, including `OC_Core` |
 
-Use a Windows engineering environment with the appropriate Siemens and Beckhoff components installed. TIA Portal will report any additional packages needed by the archived project.
+While the Siemens repository is private, its downloads require an authorized GitHub login. Engineering software and runtime licenses are obtained separately.
 
-## 2. Retrieve the TIA project
+The demonstration shows **PLCSIM Advanced V6.0 Update 1**, a **TIA V19** archive and **TwinCAT 3.1.4026** project metadata. The Windows launcher is shown in release **v1.1.0**. These identify the demonstrated environment, not a compatibility guarantee for every newer release. Follow the runtime and dependency requirements of the Assistant and plugin versions you download.
 
-1. Download this repository with **Code → Download ZIP** and extract it.
-2. Start TIA Portal V19.
-3. Use the project retrieval/open workflow for `TIA_1/Archive/DT_PSA_OPCV.zap19` and choose a writable destination.
-4. Open the retrieved project and inspect its device configuration.
-5. Compile the PLC and HMI. Resolve missing packages or compilation errors before continuing.
+## 2. Install the PLCSIM Advanced plugin
 
-The archive includes both a V19 project file and HMI-related data. Its completeness must be confirmed by retrieval and compilation in TIA Portal.
+Extract OC Assistant to a folder of your choice. Extract the plugin download and place its plugin folder inside `Plugins`, next to `OC.Assistant.exe`:
 
-## 3. Prepare the simulated PLC
+```text
+OpenCommissioning/
+  OC.Assistant.exe
+  Plugins/
+    OC.PlcSimAdvanced/
+      ...unpacked plugin files...
+```
+
+Create `Plugins` if it does not exist. Keep the plugin's files together in their folder. Restart the Assistant if it was already open when you copied the plugin. See the [official plugin installation instructions](https://github.com/OpenCommissioning/OC_Assistant#installation).
+
+![Example plugin folder location](images/assistant-plugin-folder.png)
+
+The screenshot uses `E:\OpenCommissioning`; your installation folder can be different.
+
+## 3. Prepare the Siemens PLC and HMI
+
+1. In TIA Portal V19, retrieve `TIA_1/Archive/DT_PSA_OPCV.zap19` from this repository into a writable project folder.
+2. Open the project and compile the PLC and HMI. Resolve any missing engineering components reported by TIA Portal.
+3. Start PLCSIM Advanced and create/start the S7-1500 instance named **`DT_PSA_OPCV`**.
+4. Download the PLC program to that simulated instance and put the CPU into **RUN**.
 
 ![PLCSIM Advanced control panel](images/plcsim-advanced.png)
 
-The demonstration uses an S7-1500 instance named `DT_PSA_OPCV` and shows the **PLCSIM** online-access option.
+The demo uses the **PLCSIM** online-access option. The instance name must match the supplied `OC.Assistant.xml`; adapt network settings to your environment.
 
-1. Start PLCSIM Advanced.
-2. Create/start the instance with the name `DT_PSA_OPCV`.
-3. Select the corresponding simulated PLC in TIA Portal, download the project and put the simulated CPU into RUN.
+## 4. Start the digital twin without Unity
 
-The instance name matters: `OC.Assistant.xml` refers to that exact name. Adapt network settings to the local environment instead of assuming that an address visible in a screenshot applies to your machine.
+1. Extract the complete Windows-build archive from the [digital-twin releases](https://github.com/Preliy/DT_PSA_OPCV/releases/latest).
+2. Keep the extracted files and folders together and run **`DT_PSA_OPCV.exe`**.
+3. In the launcher, select **Siemens** — scene **`VC_Demo_1_Siemens_1`**.
+4. Click **Start** to open the Siemens digital twin.
 
-## 4. Prepare the emulation connection
+![Select Siemens in the Windows demo launcher](images/siemens-scene-launcher.png)
 
-`TIA_1/EmulationUnit/` contains a TwinCAT solution used alongside the Siemens project. Its configuration declares:
+Opening the scene starts the visualization. The control connection becomes available when the EmulationUnit and OC Assistant are connected in the next steps.
+
+## 5. Start the Beckhoff EmulationUnit
+
+1. Open **`TIA_1/EmulationUnit/EmulationUnit.sln`** from this repository in the TwinCAT engineering environment.
+2. Resolve the library references, including `OC_Core`, and select the intended TwinCAT runtime target.
+3. Build and activate the emulation configuration, then log in/download and start its **`SIM_1`** PLC as required by your TwinCAT environment.
+4. Confirm that the **EmulationUnit is in RUN** before connecting OC Assistant.
+
+Use the EmulationUnit supplied in this Siemens repository. Its `OC.Assistant.xml` contains the Siemens connection configuration:
 
 | Setting | Supplied value |
 |---|---|
@@ -51,33 +87,43 @@ The instance name matters: `OC.Assistant.xml` refers to that exact name. Adapt n
 | Input/output address range | `0-1023` |
 | CycleTime value | `10` |
 
-Open `EmulationUnit.sln` in the corresponding TwinCAT engineering environment and resolve its library references, including `OC_Core`. Generated runtime files, cached libraries and trial-license files are excluded from this package.
+## 6. Connect OC Assistant
 
-The XML establishes the intended PLCSIM connection; it does not by itself prove a working end-to-end setup. Confirm the Open Commissioning version, target selection, routing and activation order against the working demo before attempting a full run.
+1. Start **`OC.Assistant.exe`** with the PLCSIM Advanced plugin installed.
+2. With the EmulationUnit running, use **connect** on the Assistant's start screen.
+3. Select your local **`TIA_1/EmulationUnit/EmulationUnit.sln`** solution when prompted.
+4. Check the Assistant's connection state and log for the PLCSIM Advanced connection to **`DT_PSA_OPCV`**.
 
-## 5. Connect the digital twin and start the HMI
+![OC Assistant start screen with the connect button and solution path](images/assistant-connect.png)
 
-Obtain the Unity project and follow the [main project's documentation](https://github.com/Preliy/DT_PSA_OPCV). Select the matching Siemens scene and verify its connection settings against the emulation project.
+This screenshot shows the **connect** entry point, not a connected state: its heading reads **No project connected**. Choose the solution from your own extracted repository; the example path is specific to the demonstration PC.
 
-After the simulated PLC and communication are ready, start the HMI simulation from TIA Portal. Confirm communication before using the machine controls.
+OC Assistant is required for this setup even with the standalone Windows build. It provides the plugin connection between PLCSIM Advanced and the emulation environment used by the twin.
 
-## 6. Verify the demonstration
+## 7. Start the HMI and check communication
 
-- Confirm the simulated CPU is in RUN and the HMI reports valid PLC values.
-- Check that a sensor change in the twin reaches the expected PLC input.
-- Check that an individual manual actuator command reaches the correct simulated device.
-- Check the home-position and readiness indications.
-- Follow the machine's documented initialization sequence before starting automatic operation.
-- Check single-step behavior and fault acknowledgement.
+Start the HMI simulation from TIA Portal. Before running the machine, check that:
 
-The exact operator sequence and expected starting state still require validation on the working demo. Do not use this draft as a commissioning procedure for physical machinery.
+- The Siemens simulated CPU and TwinCAT EmulationUnit are both in **RUN**.
+- OC Assistant is connected and the PLCSIM Advanced plugin has connected to the expected instance.
+- A sensor change in the twin reaches the corresponding PLC input.
+- A manual actuator command reaches the correct simulated device.
+- HMI values, home-position indicators and machine readiness are consistent.
+
+Then follow the machine's initialization sequence and select the required operating mode. The documentation reflects the supplied demonstration workflow; a full clean-install test across all tool versions has not yet been recorded.
+
+## Optional: edit the Unity project
+
+Download/clone the [main Unity repository](https://github.com/Preliy/DT_PSA_OPCV) and install the matching Unity editor only if you want to edit the scene or model. Its documentation covers that engineering workflow. You can place this Siemens repository inside it as `Siemens/`, as described in the [README](../README.md).
 
 ## Troubleshooting
 
 | Symptom | First check |
 |---|---|
-| Archive cannot be retrieved | TIA Portal version and required installed components |
-| PLC connection unavailable | Running PLCSIM instance and exact instance name |
+| No executable in the download | Download the **Windows build** release asset, not the source-code ZIP |
+| Scene opens but machine does not respond | Siemens scene selected, both PLCs in RUN, Assistant connected and I/O mapping correct |
+| Plugin is unavailable | Plugin folder is inside `Plugins` next to `OC.Assistant.exe`; restart the Assistant and check dependencies |
+| Assistant shows **No project connected** | EmulationUnit is running; use **connect** with the correct `.sln` file |
+| PLCSIM connection fails | Instance name `DT_PSA_OPCV`, running CPU and plugin configuration |
 | Emulation project does not compile | TwinCAT version and referenced libraries |
-| HMI values unavailable | HMI connection and simulated PLC state |
-| Twin does not respond | Matching Siemens scene, emulation connection and I/O mapping |
+| HMI values are unavailable | HMI connection and simulated Siemens CPU state |
