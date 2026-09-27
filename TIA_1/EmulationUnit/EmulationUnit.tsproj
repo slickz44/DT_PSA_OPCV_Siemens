@@ -23,7 +23,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{3349BDD1-C1B4-41A8-B54C-DC47D31B3B38}" Name="SIM_1" PrjFilePath="SIM_1\SIM_1.plcproj" TmcFilePath="SIM_1\SIM_1.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4BE4962F-4AB2-39BB-52A2-799D6AD134B5}" TmcPath="SIM_1\SIM_1.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{D0E0EB27-B17B-F219-12AF-42CA650279E2}" TmcPath="SIM_1\SIM_1.tmc">
 					<Name>SIM_1 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">

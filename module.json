@@ -3,8 +3,8 @@
   "vendor": "Siemens",
   "version": "0.1.0",
   "platform": "Siemens TIA Portal",
-  "repository": "https://github.com/Preliy/DT_PSA_OPCV_Siemens",
+  "repository": "https://github.com/slickz44/DT_PSA_OPCV_Siemens",
   "main": "https://github.com/Preliy/DT_PSA_OPCV",
-  "description": "The Siemens port. Work in progress - the Unity scene and its context export are real, the control side does not exist yet.",
+  "description": "Siemens TIA Portal PLC and HMI implementation for DT_PSA_OPCV, maintained by Andreas Fast (slickz44). Includes a V19 project archive and emulation source files.",
   "license": "GPL-3.0"
 }
