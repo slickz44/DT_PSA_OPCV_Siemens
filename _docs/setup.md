@@ -23,9 +23,9 @@ The diagram also shows engineering functions such as importing components and sy
 | OC Assistant | Follow the Assistant download link in [OC_Assistant](https://github.com/OpenCommissioning/OC_Assistant) |
 | PLCSIM Advanced plugin | Obtain the plugin from [OC_Assistant_PlcSimAdvanced](https://github.com/OpenCommissioning/OC_Assistant_PlcSimAdvanced) |
 | Siemens tools | TIA Portal V19, PLCSIM Advanced and the WinCC components required by the project |
-| Beckhoff tools | TwinCAT engineering/runtime environment and the EmulationUnit's referenced libraries, including `OC_Core` |
+| Beckhoff tools | TwinCAT engineering/runtime environment and the EmulationUnit's referenced libraries, including [OC_Core — download and installation](https://github.com/OpenCommissioning/OC_TwinCAT_Core) |
 
-While the Siemens repository is private, its downloads require an authorized GitHub login. Engineering software and runtime licenses are obtained separately.
+Engineering software and runtime licenses are obtained separately.
 
 The demonstration shows **PLCSIM Advanced V6.0 Update 1**, a **TIA V19** archive and **TwinCAT 3.1.4026** project metadata. The Windows launcher is shown in release **v1.1.0**. These identify the demonstrated environment, not a compatibility guarantee for every newer release. Follow the runtime and dependency requirements of the Assistant and plugin versions you download.
 
@@ -72,7 +72,7 @@ Opening the scene starts the visualization. The control connection becomes avail
 ## 5. Start the Beckhoff EmulationUnit
 
 1. Open **`TIA_1/EmulationUnit/EmulationUnit.sln`** from this repository in the TwinCAT engineering environment.
-2. Resolve the library references, including `OC_Core`, and select the intended TwinCAT runtime target.
+2. Install [OC_Core](https://github.com/OpenCommissioning/OC_TwinCAT_Core) and resolve the library references, and select the intended TwinCAT runtime target.
 3. Build and activate the emulation configuration, then log in/download and start its **`SIM_1`** PLC as required by your TwinCAT environment.
 4. Confirm that the **EmulationUnit is in RUN** before connecting OC Assistant.
 

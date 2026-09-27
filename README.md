@@ -24,7 +24,7 @@ Controls engineers exploring a reusable PLC structure, students learning how mac
 
 **Want to inspect the PLC and HMI project?** [Open the TIA Portal V19 archive](TIA_1/Archive/DT_PSA_OPCV.zap19), select **Download raw file**, then retrieve it in TIA Portal V19.
 
-**Want all Siemens files?** [Download this repository as a ZIP](https://github.com/slickz44/DT_PSA_OPCV_Siemens/archive/refs/heads/master.zip) and extract it. While this repository is private, sign in with an account that has access.
+**Want all Siemens files?** [Download this repository as a ZIP](https://github.com/slickz44/DT_PSA_OPCV_Siemens/archive/refs/heads/master.zip) and extract it.
 
 **Want to run virtual commissioning?** Download the **Windows build – demo launcher** from the [digital-twin releases](https://github.com/Preliy/DT_PSA_OPCV/releases/latest), extract it, run `DT_PSA_OPCV.exe`, select **Siemens** (`VC_Demo_1_Siemens_1`) and click **Start**. Unity is not required. Follow the [Siemens setup guide](_docs/setup.md) to prepare PLCSIM Advanced, start the supplied Beckhoff EmulationUnit in RUN and connect it using OC Assistant with the PLCSIM Advanced plugin.
 
@@ -110,11 +110,11 @@ The main project's [compatibility information](https://github.com/Preliy/DT_PSA_
 
 ## Contributing
 
-Ideas for improving the TIA Portal machine control are welcome. Open an issue to share a suggestion, ask a question or discuss a possible improvement.
+Ideas for improving the TIA Portal machine control are welcome. Open an issue to share a suggestion, ask a question or discuss a possible improvement. You can also contact me on [LinkedIn](https://www.linkedin.com/in/automation-fast-andreas/).
 
 ## Credits and license
 
-- **Viktor Gaponenko** — the digital-twin project.
+- **[Viktor Gaponenko](https://github.com/Preliy)** — digital-twin expert and creator of the DT_PSA_OPCV simulation. Special thanks for his expertise in digital twins and virtual commissioning, and for providing the simulation environment that brings this Siemens control project to life.
 - **Open Commissioning** — digital-twin and emulation framework.
 
-[GPL-3.0](https://github.com/Preliy/DT_PSA_OPCV/blob/master/LICENSE). Original attribution retained: Copyright © 2026 Viktor Gaponenko. Existing third-party notices continue to apply to their respective components.
+[GPL-3.0](LICENSE). Copyright © 2026 Andreas Fast — Siemens TIA Portal machine control implementation. Existing copyright and license notices for third-party components and the digital-twin project remain with their respective authors.
