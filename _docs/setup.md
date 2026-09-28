@@ -76,6 +76,10 @@ Opening the scene starts the visualization. The control connection becomes avail
 3. Build and activate the emulation configuration, then log in/download and start its **`SIM_1`** PLC as required by your TwinCAT environment.
 4. Confirm that the **EmulationUnit is in RUN** before connecting OC Assistant.
 
+![TwinCAT engineering environment with the EmulationUnit solution and SIM_1 PLC](images/twincat-emulationunit.png)
+
+The screenshot identifies the EmulationUnit solution and its SIM_1 PLC. Confirm the running PLC state in your own TwinCAT session before connecting OC Assistant.
+
 Use the EmulationUnit supplied in this Siemens repository. Its `OC.Assistant.xml` contains the Siemens connection configuration:
 
 | Setting | Supplied value |
