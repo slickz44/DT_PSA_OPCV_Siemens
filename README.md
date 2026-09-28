@@ -96,7 +96,7 @@ The diagram also includes Unity project synchronization and engineering function
 1. Download this Siemens repository, the digital-twin Windows build, [OC Assistant](https://github.com/OpenCommissioning/OC_Assistant) and its [PLCSIM Advanced plugin](https://github.com/OpenCommissioning/OC_Assistant_PlcSimAdvanced).
 2. Copy the unpacked plugin folder into the Assistant's `Plugins` directory, next to `OC.Assistant.exe`.
 3. Retrieve the TIA V19 archive, compile the PLC/HMI and load the PLC program into the `DT_PSA_OPCV` PLCSIM Advanced instance.
-4. Run `DT_PSA_OPCV.exe`, select **Siemens** and click **Start**.
+4. Run `DT_PSA_OPCV.exe`, select **Siemens** and click **Start**. Activate the **arrow/pointer button at the top of the left toolbar** to operate pushbuttons and open guard doors with the mouse (see the [illustrated setup guide](_docs/setup.md#4-start-the-digital-twin-without-unity)).
 5. Open `TIA_1/EmulationUnit/EmulationUnit.sln` in TwinCAT and start the EmulationUnit PLC in **RUN**.
 6. Start OC Assistant and click **connect** to connect the EmulationUnit solution.
 7. Check communication, start the HMI simulation and verify the machine's initial state before operation.
