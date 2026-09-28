@@ -67,10 +67,6 @@ The demo uses the **PLCSIM** online-access option. The instance name must match 
 
 ![Select Siemens in the Windows demo launcher](images/siemens-scene-launcher.png)
 
-**Enable mouse interaction:** Activate the **arrow/pointer button at the top of the vertical toolbar on the left**, highlighted in red below. This must be enabled to operate pushbuttons or open guard doors in the digital twin with the mouse.
-
-<img src="images/digital-twin-interaction-button.png" alt="Arrow button for mouse interaction highlighted in red on the left toolbar" width="240">
-
 Opening the scene starts the visualization. The control connection becomes available when the EmulationUnit and OC Assistant are connected in the next steps.
 
 ## 5. Start the Beckhoff EmulationUnit
