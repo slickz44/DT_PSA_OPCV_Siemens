@@ -72,7 +72,11 @@ Opening the scene starts the visualization. The control connection becomes avail
 ## 5. Start the Beckhoff EmulationUnit
 
 1. Open **`TIA_1/EmulationUnit/EmulationUnit.sln`** from this repository in the TwinCAT engineering environment.
-2. Install [OC_Core](https://github.com/OpenCommissioning/OC_TwinCAT_Core) and resolve the library references, and select the intended TwinCAT runtime target.
+2. Install and reference **OC_Core** in TwinCAT:
+   - Download the matching `OC_Core` library file (`.library` or `.compiled-library`) from [OC_TwinCAT_Core](https://github.com/OpenCommissioning/OC_TwinCAT_Core) and extract it if supplied in an archive.
+   - In the PLC project tree, double-click **SIM_1 → References** to open the Library Manager. Select **Library Repository → Install**, choose the downloaded library file and confirm.
+   - The supplied EmulationUnit already references `OC_Core`. Check that this reference resolves to the installed version. If the reference is missing, select **Add library**, search for **OC_Core**, select it and confirm with **OK**.
+   - Resolve any missing dependent libraries, then select the intended TwinCAT runtime target. See [Beckhoff's Library Manager documentation](https://infosys.beckhoff.com/content/1033/tc3_plc_intro/4189713803.html) for the dialog details.
 3. Build and activate the emulation configuration, then log in/download and start its **`SIM_1`** PLC as required by your TwinCAT environment.
 4. Confirm that the **EmulationUnit is in RUN** before connecting OC Assistant.
 
