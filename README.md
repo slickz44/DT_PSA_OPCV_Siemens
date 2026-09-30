@@ -108,9 +108,21 @@ Machine behavior — sequences, interlocks, fault codes and the reset model — 
 
 The main project's [compatibility information](https://github.com/Preliy/DT_PSA_OPCV/blob/master/COMPATIBILITY.md) provides the shared compatibility context. The new maintainer URL and tested Siemens/twin version pairing should also be recorded there when coordinated with the main project.
 
+## Roadmap
+
+Planned improvements and ideas for future development:
+
+- **Safety concept:** Extend the machine control and simulation with safety doors and multiple safety circuits.
+- **Production counters:** Add daily and shift counters for OK/NOK parts, tracked by product number.
+- **Parallel sequences:** Introduce parallel sequence execution to reduce cycle time.
+- **Bottleneck analysis:** Identify stations and process steps that limit throughput.
+- **Lift drives:** Explore PROFIdrive-based control for the two lifts.
+
+These topics are open for discussion. Priorities and implementation details may evolve.
+
 ## Contributing
 
-Ideas for improving the TIA Portal machine control are welcome. Open an issue to share a suggestion, ask a question or discuss a possible improvement. You can also contact me on [LinkedIn](https://www.linkedin.com/in/automation-fast-andreas/).
+Have ideas or experience related to these topics? Suggestions for improving the TIA Portal machine control are welcome. Open an issue or get in touch via [LinkedIn](https://www.linkedin.com/in/automation-fast-andreas/).
 
 ## Credits and license
 
