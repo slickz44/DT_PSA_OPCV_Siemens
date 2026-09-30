@@ -117,6 +117,7 @@ Planned improvements and ideas for future development:
 - **Parallel sequences:** Introduce parallel sequence execution to reduce cycle time.
 - **Bottleneck analysis:** Identify stations and process steps that limit throughput.
 - **Lift drives:** Explore PROFIdrive-based control for the two lifts.
+- **Diagnostics:** Extend fault reporting to identify the affected actuators and step sequences.
 
 These topics are open for discussion. Priorities and implementation details may evolve.
 
