@@ -54,9 +54,11 @@ The screenshot uses `E:\OpenCommissioning`; your installation folder can be diff
 3. Start PLCSIM Advanced and create/start the S7-1500 instance named **`DT_PSA_OPCV`**.
 4. Download the PLC program to that simulated instance and put the CPU into **RUN**.
 
-![PLCSIM Advanced control panel](images/plcsim-advanced.png)
+<img src="images/plcsim-advanced.png" alt="PLCSIM Advanced control panel with the required DT_PSA_OPCV instance name highlighted" width="415">
 
-The demo uses the **PLCSIM** online-access option. The instance name must match the supplied `OC.Assistant.xml`; adapt network settings to your environment.
+> **Required instance name: `DT_PSA_OPCV`.** Enter this exact name in the **Instance name** field highlighted above, including capitalization and underscores. For the supplied setup, do not use a different name: OC Assistant is configured to connect to this instance via `<PlcName>DT_PSA_OPCV</PlcName>`. A different instance name will not match the supplied configuration.
+
+The demo uses the **PLCSIM** online-access option. The connection settings are stored in [`TIA_1/EmulationUnit/OC.Assistant.xml`](../TIA_1/EmulationUnit/OC.Assistant.xml); see the configuration details in step 5. Adapt network settings to your environment.
 
 ## 4. Start the digital twin without Unity
 
@@ -84,7 +86,9 @@ Opening the scene starts the visualization. The control connection becomes avail
 
 The screenshot identifies the EmulationUnit solution and its SIM_1 PLC. Confirm the running PLC state in your own TwinCAT session before connecting OC Assistant.
 
-Use the EmulationUnit supplied in this Siemens repository. Its `OC.Assistant.xml` contains the Siemens connection configuration:
+Use the EmulationUnit supplied in this Siemens repository. The exact connection settings between **OC Assistant and PLCSIM Advanced** are defined in [`TIA_1/EmulationUnit/OC.Assistant.xml`](../TIA_1/EmulationUnit/OC.Assistant.xml), next to `EmulationUnit.sln`.
+
+If this Siemens repository is inside the main digital-twin folder, the full relative path is `DT_PSA_OPCV/Siemens/TIA_1/EmulationUnit/OC.Assistant.xml`. The `PlcSimAdvanced` plugin section contains `<PlcName>DT_PSA_OPCV</PlcName>`, which must match the instance name in PLCSIM Advanced exactly. The supplied settings are:
 
 | Setting | Supplied value |
 |---|---|
