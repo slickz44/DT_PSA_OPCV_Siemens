@@ -4,9 +4,9 @@ One machine. Reusable control modules. Virtual commissioning with TIA Portal.
 
 ## See it in action
 
-![Virtual commissioning with TIA Portal — modularization and standardization](_docs/images/video-thumbnail.png)
+[![Virtual commissioning with TIA Portal — modularization and standardization](_docs/images/video-thumbnail.png)](https://youtu.be/DnUcnGoN3U8)
 
-The Siemens walkthrough is in preparation. The video link will be added here when it is ready.
+[Watch the Siemens walkthrough on YouTube](https://youtu.be/DnUcnGoN3U8): virtual commissioning with TIA Portal, modularization and standardization.
 
 ## What is it?
 
