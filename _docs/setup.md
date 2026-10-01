@@ -50,7 +50,7 @@ The screenshot uses `E:\OpenCommissioning`; your installation folder can be diff
 ## 3. Prepare the Siemens PLC and HMI
 
 1. In TIA Portal V19, retrieve `TIA_1/Archive/DT_PSA_OPCV.zap19` from this repository into a writable project folder.
-2. Open the project and compile the PLC and HMI. Resolve any missing engineering components reported by TIA Portal.
+2. Open the project and compile the PLC and HMI. Resolve any missing engineering components reported by TIA Portal. When TIA Portal prompts for the Safety password for the supplied project, enter **`0000`** (four zeros).
 3. Start PLCSIM Advanced and create/start the S7-1500 instance named **`DT_PSA_OPCV`**.
 4. Download the PLC program to that simulated instance and put the CPU into **RUN**.
 
