@@ -28,6 +28,8 @@ Controls engineers exploring a reusable PLC structure, students learning how mac
 
 **Want to run virtual commissioning?** Download the **Windows build – demo launcher** from the [digital-twin releases](https://github.com/Preliy/DT_PSA_OPCV/releases/latest), extract it, run `DT_PSA_OPCV.exe`, select **Siemens** (`VC_Demo_1_Siemens_1`) and click **Start**. Unity is not required. Follow the [Siemens setup guide](_docs/setup.md) to prepare PLCSIM Advanced, start the supplied Beckhoff EmulationUnit in RUN and connect it using OC Assistant with the PLCSIM Advanced plugin.
 
+**Ready to operate the machine?** Follow the [framework guide: first steps and machine startup](_docs/framework.md#first-steps-get-the-machine-running). It explains the operator controls, homing before production, single-step operation and the framework structure for developers.
+
 ## Optional: work with the Unity source project
 
 Only if you want to edit the Unity project, clone this module into the main repository's root as `Siemens/`:
