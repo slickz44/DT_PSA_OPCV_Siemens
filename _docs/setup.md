@@ -122,7 +122,7 @@ Start the HMI simulation from TIA Portal. Before running the machine, check that
 - A manual actuator command reaches the correct simulated device.
 - HMI values, home-position indicators and machine readiness are consistent.
 
-Continue with the [framework guide: first steps and machine startup](framework.md#first-steps-get-the-machine-running): **Control On → wait for readiness → automatic mode → Auto Start for homing → wait for Reset to stay lit → Auto Start for production**. The documentation reflects the supplied demonstration workflow; a full clean-install test across all tool versions has not yet been recorded.
+For the first startup after the control has been off, continue with the [framework guide: first steps and machine startup](framework.md#first-steps-get-the-machine-running): **Control On → wait for readiness → automatic mode → Auto Start for homing → wait for Reset to stay lit → Auto Start for production**. For later mode changes, see [when homing is selected automatically](framework.md#when-homing-is-selected-automatically); changing to automatic does not always require a new homing run. The documentation reflects the supplied demonstration workflow; a full clean-install test across all tool versions has not yet been recorded.
 
 ## Optional: edit the Unity project
 

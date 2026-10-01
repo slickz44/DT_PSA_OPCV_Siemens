@@ -8,20 +8,34 @@ Complete the [Siemens setup guide](setup.md) first: load the project into the **
 
 ![Machine operator panel with Control On/Off, Op Mode, Single Step, Auto Start, Auto Stop, Error Ack. and Reset](images/machine-operator-panel.png)
 
-Use the controls on the machine's operator panel in this order:
+For the first startup after the control has been off, use the controls on the machine's operator panel in this order:
 
 | Step | Action | What to observe |
 |---|---|---|
 | 1 | Switch **CONTROL ON/OFF** on. | The control starts up. Its indicator flashes during startup. |
 | 2 | Wait for **CONTROL ON/OFF** to show a steady light. | The configured startup readiness conditions are satisfied. |
-| 3 | Turn **OP MODE** to the right to select automatic mode. | **RESET** flashes: the homing sequence is selected. Selecting automatic mode alone does not start motion. |
+| 3 | Turn **OP MODE** to the right to select automatic mode. | On this first switch to automatic after startup, **RESET** flashes: homing is selected. Selecting automatic mode alone does not start motion. |
 | 4 | Press **AUTO START**. | The selected homing sequence runs and brings the stations to their home positions. |
 | 5 | Wait until **RESET** lights steadily. | All stations are in their home positions. |
 | 6 | Press **AUTO START** again. | The automatic production sequence starts, provided the required conditions and releases are satisfied. |
 
-**Reset selects homing; Auto Start executes it.** The first start performs homing, and the next start begins production.
+**Reset can select homing manually; Auto Start executes selected homing.** In the startup procedure above, the first start performs homing and the next start begins production. Automatic homing selection depends on the conditions below; switching to automatic mode does not always select a new homing run.
 
 Startup readiness can include functions such as starting external camera computers or enabling the main compressed-air supply and waiting for pressure. These are examples of how the framework can be used; they are not a claim that every such device is implemented in this demo.
+
+## When homing is selected automatically
+
+Station homing is automatically selected only in these cases:
+
+| Trigger | Selection behavior |
+|---|---|
+| An emergency stop has occurred or the protective circuit has been opened. | Homing is automatically preselected for the stations. |
+| The control has been off and the machine is switched to automatic with **OP MODE** for the first time during startup. | Homing is automatically preselected as part of this initial startup. |
+| Setup mode was active in a particular station and **OP MODE** is switched back to automatic. | Homing is automatically preselected for that station. This is a station-specific condition. |
+
+Automatic preselection does not initiate motion. **AUTO START** executes the selected homing run once the required conditions are satisfied. **RESET** can also be used to select homing manually.
+
+A normal switch back to automatic without any of these conditions does not by itself preselect homing.
 
 ## Controls and indicator meanings
 
@@ -54,9 +68,9 @@ The framework handles a sequence fault in stages:
 
 Here, reaching home means completing the applicable sequence to its home position; it is not a separate commanded homing run. Inspect the HMI alarms and the affected sequence before restarting.
 
-### Restart after an emergency stop
+### Restart after an emergency stop or an opened protective circuit
 
-After an emergency stop, homing is selected for all stations. Once the emergency-stop condition has been cleared and the required acknowledgement completed:
+After an emergency stop or an opened protective circuit, homing is preselected. Once the relevant condition has been cleared, the protective circuit is closed, automatic mode is selected and the required acknowledgement completed:
 
 1. Press **AUTO START** to execute homing.
 2. Wait for all stations to reach home (**RESET** steady).
