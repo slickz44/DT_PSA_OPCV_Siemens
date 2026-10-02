@@ -119,7 +119,7 @@ The workflow is: **insert and wire the actuator → extend `FG04Actors` → comp
 
 Open `FG04ActorControl` and choose the library block that matches the actuator. In this example, the existing axis uses `Cylinder_2Out2In`, followed by reserved calls. The first reserved call is replaced with a `Cylinder_1Out1In` call named `sinstNewActor`. Create the corresponding FB instance in the station's actuator-control block, as shown in the example.
 
-![FG04ActorControl before the extension, with the existing Axis Z call and reserved actuator calls](images/manual-operation/01-existing-actor-and-reserved-slots.png)
+![FG04ActorControl before the extension, with the existing Axis Z call and the first reserved actuator call](images/manual-operation/01-existing-actor-and-reserved-slots.png)
 
 *Starting point: an existing actuator provides a wiring reference; the following reserved call is the position used in this example.*
 
@@ -171,7 +171,7 @@ After successful initialization in this example:
 
 - The new actuator reports **`manualMoveNo = 24`**.
 - Its entry is **`"ManualMovements".movements[24]`**.
-- The entry's `attributes.initialised` is `TRUE` and its `stationNo` is `4`.
+- The entry's `attributes.initialised` is `TRUE`, its `stationNo` is `4`, and its station-local `movementNo` is `2` because `NewActor` is the second actuator in station 4.
 - The HMI setup functions for **FG 4** include the new actuator row, initially with placeholder texts.
 
 ![Online NewActor call reporting manualMoveNo 24 and the corresponding ManualMovements.movements[24] attributes, including initialised TRUE and stationNo 4](images/manual-operation/05-assigned-movement-24.png)
@@ -183,6 +183,37 @@ After successful initialization in this example:
 ![FG 4 setup functions displaying the new second actuator row with default placeholder labels](images/manual-operation/06-hmi-placeholder-row.png)
 
 *The row is already supplied by the common setup display. Its actuator-specific labels still need to be entered in the HMI text list.*
+
+##### How actuator calls, stations and movement entries are mapped
+
+The aim of this structure is to make adding actuators quick and straightforward: the application developer adds and connects the actuator calls, while initialization registers their manual-operation entries and the common HMI setup display expands accordingly. Actuator-specific HMI texts still need to be maintained as described in the next step.
+
+During initialization, **all actuator calls participating in registration, including reserved placeholder calls, are counted and assigned consecutive entries in the global `ManualMovements` DB**. The global `manualMoveNo` continues across station boundaries. Each entry also identifies its station and its station-local `movementNo`.
+
+The screenshots illustrate the following sequence:
+
+| Station | Actuator / placeholder | Global `manualMoveNo` and DB entry | Position within the station |
+|---|---|---|---|
+| FG 4 | Axis Z | `23` → `movements[23]` | First actuator |
+| FG 4 | NewActor | `24` → `movements[24]` | Second actuator; `movementNo = 2` |
+| FG 4 | Reserved placeholder 2 | `25` → `movements[25]` | Third slot (reserved) |
+| FG 4 | Reserved placeholder 3 | `26` → `movements[26]` | Fourth slot (reserved) |
+| FG 5 | Axis R | `27` → `movements[27]` | First actuator of the next station |
+| FG 5 | Axis X | `28` → `movements[28]` | Second actuator of the next station |
+
+**This HMI panel displays four setup rows per page.** FG 4 therefore retains two `Actor_Reserved` calls after Axis Z and NewActor. They occupy movement entries 25 and 26, keeping the next station's Axis R assigned to movement number **27**. Number 27 is its global setup movement number, not the 27th visible row on one HMI page.
+
+![FG04ActorControl online: NewActor receives movement number 24 and two Actor_Reserved calls receive 25 and 26](images/manual-operation/09-fg04-reserved-movements-25-26.png)
+
+*The two reserved calls participate in registration just like allocated slots. They preserve space in FG 4 so that the following station's numbering remains unchanged in this extension.*
+
+![FG05ActorControl online: Axis R retains manualMoveNo 27 and Axis X follows with 28](images/manual-operation/10-fg05-movements-27-28.png)
+
+*Registration continues across the station boundary: FG 4 ends at 26 and FG 5 starts at 27.*
+
+When replacing a reserved call with a real actuator, keep its position in the call sequence and initialize the mapping again. In this example, NewActor replaces the former reserved slot at 24; the remaining placeholders preserve the subsequent assignments. Adding or removing calls without preserving those slots can shift the movement numbers of following actuators and their associated HMI text-list groups.
+
+The framework **automatically calculates the number of available HMI setup pages**. The developer does not manually set the page count for each added actuator. Initialization provides the movement mapping, the common HMI displays the station's setup functions, and the `Setup` text list supplies the labels. The four-row page layout is specific to the panel configuration shown here.
 
 #### 5. Set the HMI labels in the Setup text list
 
