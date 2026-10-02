@@ -129,6 +129,10 @@ These topics are open for discussion. Priorities and implementation details may 
 
 Have ideas or experience related to these topics? Suggestions for improving the TIA Portal machine control are welcome. Open an issue or get in touch via [LinkedIn](https://www.linkedin.com/in/automation-fast-andreas/).
 
+## Releases
+
+Releases are published manually with a chosen version and description. Regular pushes update the repository without creating a release. See the [manual release guide](_docs/releasing.md).
+
 ## Credits and license
 
 - **[Viktor Gaponenko](https://github.com/Preliy)** — digital-twin expert and creator of the DT_PSA_OPCV simulation. Special thanks for his expertise in digital twins and virtual commissioning, and for providing the simulation environment that brings this Siemens control project to life.
