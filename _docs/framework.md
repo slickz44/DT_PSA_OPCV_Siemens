@@ -109,6 +109,135 @@ Every actuator block receives station signals and interfaces to both manual oper
 
 This lets the HMI use a consistent setup interface while each station has its own actuators and automatic process.
 
+### Add an actuator and extend manual operation
+
+This example adds `NewActor` to **FG 4**. It shows how a reusable actuator block connects to the station's application interface and becomes available in the HMI setup functions. The screenshots are from the author's TIA Portal example; German editor labels and English runtime labels refer to the same project.
+
+The workflow is: **insert and wire the actuator → extend `FG04Actors` → compile and download → initialize the movement mapping → edit the HMI texts**. Downloading a new call alone does not complete its registration for manual operation.
+
+#### 1. Insert the actuator call in the station
+
+Open `FG04ActorControl` and choose the library block that matches the actuator. In this example, the existing axis uses `Cylinder_2Out2In`, followed by reserved calls. The first reserved call is replaced with a `Cylinder_1Out1In` call named `sinstNewActor`. Create the corresponding FB instance in the station's actuator-control block, as shown in the example.
+
+![FG04ActorControl before the extension, with the existing Axis Z call and reserved actuator calls](images/manual-operation/01-existing-actor-and-reserved-slots.png)
+
+*Starting point: an existing actuator provides a wiring reference; the following reserved call is the position used in this example.*
+
+#### 2. Add the application interface and wire the block
+
+In `FG04Actors`, add `NewActor` with the matching interface type, **`typeActor_1Out1In`** for this example. Connect it to the new actuator block's `actor` interface.
+
+| Connection on the new actuator block | Connect to / purpose |
+|---|---|
+| `actor` | `"FG04Actors".NewActor`: commands and status for use in the application program, including GRAPH sequences. |
+| `signals` | `#signals`: the station signals already passed into `FG04ActorControl`. |
+| `manualMovement` | `#manualMovements`: the shared `ManualMovements` structure passed down through the station. |
+| `iniEndPos` | The end-position feedback appropriate to the actuator. |
+| `workPos` | The output signal appropriate to the actuator. |
+| `config` | Configuration appropriate to the selected actuator block and application. |
+
+![New Cylinder_1Out1In call wired to FG04Actors.NewActor, station signals and manualMovements; matching NewActor entry in the station DB](images/manual-operation/02-new-actor-and-station-interface.png)
+
+*The red marks connect the two relevant locations: the new DB entry on the right and its connection to `actor` on the left.*
+
+The screenshot demonstrates the interface wiring; `config`, `iniEndPos` and `workPos` still show constant or unconnected values. Complete the actual configuration and physical or simulated I/O assignment for the actuator being added. These illustrative values are not a complete working device connection.
+
+**Use the actuator's `FG04Actors.NewActor` interface in the application program. Do not use absolute input/output addresses directly in step sequences.** Keep I/O assignment at the actuator call; the sequences use the actuator's commands and feedback through its typed interface.
+
+#### 3. Download and initialize the movement mapping
+
+Compile the changed PLC blocks and download them to the CPU. A newly added actuator can still have **`manualMoveNo = 0`** after download: it has not yet been assigned its movement entry.
+
+Run initialization using one of the author's supported methods:
+
+- Restart the CPU so the startup initialization runs.
+- Alternatively, trigger `"ManualMovements".setup.initialisation.execute` to request initialization.
+
+The screenshot below shows the initialization structure online. Observe its completion and error status; **`isDone = TRUE` alone does not prove success**. In this screenshot, `error` is also `TRUE`.
+
+![ManualMovements.setup.initialisation online, showing execute, isActive, isDone and error; isDone and error are both TRUE](images/manual-operation/03-initialization-status.png)
+
+The HMI reports an unsuccessful initialization with message **1001**:
+
+> Machine fault 1: Setup movement initialisation failed (CPU restart required)
+
+![HMI message 1001 reporting that setup movement initialization failed](images/manual-operation/04-initialization-alarm.png)
+
+The message currently names a CPU restart. The explicit initialization request through `setup.initialisation.execute` is the alternative described above. After initialization, verify the result online rather than assuming that downloading the block or acknowledging a message has registered the actuator.
+
+#### 4. Verify the assigned movement and HMI row
+
+After successful initialization in this example:
+
+- The new actuator reports **`manualMoveNo = 24`**.
+- Its entry is **`"ManualMovements".movements[24]`**.
+- The entry's `attributes.initialised` is `TRUE` and its `stationNo` is `4`.
+- The HMI setup functions for **FG 4** include the new actuator row, initially with placeholder texts.
+
+![Online NewActor call reporting manualMoveNo 24 and the corresponding ManualMovements.movements[24] attributes, including initialised TRUE and stationNo 4](images/manual-operation/05-assigned-movement-24.png)
+
+*The lower-left mark highlights the assigned movement number; the right-hand mark highlights its matching DB entry. The existing Axis Z actuator has movement number 23.*
+
+`24` is the movement number and array index used here, not a fixed number to assign to every new actuator. Read the value actually assigned in your project. The screenshot also shows a station-local movement number of `2`; do not confuse that local row number with the global `manualMoveNo` used for the text-list mapping.
+
+![FG 4 setup functions displaying the new second actuator row with default placeholder labels](images/manual-operation/06-hmi-placeholder-row.png)
+
+*The row is already supplied by the common setup display. Its actuator-specific labels still need to be entered in the HMI text list.*
+
+#### 5. Set the HMI labels in the Setup text list
+
+In the HMI project, open **Text and graphic lists → Text lists → Setup** (`Text- und Grafiklisten → Textlisten → Setup` in the German editor).
+
+Each movement uses a group of ten text-list values. For movement number **24**, edit **240–249**:
+
+**Text-list base value = `manualMoveNo × 10`**
+
+| Value | Label represented by the entry |
+|---|---|
+| `240` | Function name, symbolic display |
+| `241` | Function name, absolute display |
+| `242` | Left movement active, symbolic display |
+| `243` | Left movement active, absolute display |
+| `244` | Left end position, symbolic display |
+| `245` | Left end position, absolute display |
+| `246` | Right movement active, symbolic display |
+| `247` | Right movement active, absolute display |
+| `248` | Right end position, symbolic display |
+| `249` | Right end position, absolute display |
+
+![HMI Setup text list with the values 240 through 249 marked for movement 24](images/manual-operation/07-setup-text-list-240-249.png)
+
+Adapt the applicable entries to the actuator and maintain the runtime languages you use. The block's movement attributes determine which controls and indications are displayed; not every actuator uses every field. Absolute-display labels are HMI text entries and do not change the rule to use the actuator interface rather than absolute I/O in the sequence code.
+
+In the illustrated result, `240` and `241` contain **New Actor**, `242` contains **work pos**, and `248` contains **in home**. These are example labels for the demonstrated configuration; choose names that match your actual actuator and feedback.
+
+Compile and transfer the HMI changes, or rebuild/restart the HMI simulation as appropriate, then check the resulting row.
+
+![Edited Setup entries for New Actor, work pos and in home alongside the corresponding FG 4 runtime row](images/manual-operation/08-edited-texts-and-hmi.png)
+
+*The highlighted text-list entries on the left correspond to the highlighted labels in the setup row on the right.*
+
+#### 6. Check the extension
+
+Before using the new actuator in automatic sequences, verify:
+
+- The block has the intended configuration, I/O and station-signal connections.
+- `FG04Actors.NewActor` uses the interface type expected by the actuator block.
+- Initialization completes without an initialization error; `manualMoveNo` is assigned and the matching movement entry is initialized for FG 4.
+- The HMI row appears under the correct station with meaningful labels for the assigned movement number.
+- In manual/setup operation, the command, actuator response and feedback agree, subject to the configured releases and interlocks.
+- The automatic application accesses `FG04Actors.NewActor`, not the physical I/O directly.
+
+If actuator calls are added, removed or reordered later, recheck the assigned movement numbers and their HMI text groups after initialization.
+
+| Observation | Check |
+|---|---|
+| New actuator still reports `manualMoveNo = 0` | Run initialization after the PLC download and check its status. |
+| `isDone = TRUE`, but `error = TRUE` or HMI message 1001 remains | Initialization was not successful. Check the new call's wiring, its participation in initialization and the movement registration. |
+| Row appears with texts such as `Function sym` | Edit the `Setup` text-list group for the assigned movement number, then update the HMI runtime. |
+| Correct row number but labels describe another actuator | Compare the actual `manualMoveNo` with the text-list group; in this example, 24 maps to 240–249. |
+| Row exists but the actuator does not respond | Check manual/setup selection, station releases, actuator configuration, interlocks and actual I/O assignment. |
+
 ## Communication between stations
 
 `FGxxGlobals` provides signal exchange between function groups. The current implementation does **not** enforce a strict rule that only the owning station writes to its globals.

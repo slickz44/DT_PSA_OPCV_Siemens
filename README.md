@@ -85,6 +85,8 @@ The architecture illustration explains the intended structure; the retrieved TIA
 
 The HMI overview shows the machine, function groups FG 1–5 and transport together. It supports inspecting their operating and status indications. The supplied screenshots use German HMI labels.
 
+**Want to add an actuator?** Follow the [manual-operation extension guide](_docs/framework.md#add-an-actuator-and-extend-manual-operation): wire the actuator, initialize its movement entry and configure its HMI setup labels.
+
 ## How the tools communicate
 
 ![Siemens communication overview](_docs/images/OC_Base_Siemens.svg)
