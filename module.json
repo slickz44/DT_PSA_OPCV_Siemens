@@ -1,7 +1,7 @@
 {
   "name": "DT_PSA_OPCV_Siemens",
   "vendor": "Siemens",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "platform": "Siemens TIA Portal",
   "repository": "https://github.com/slickz44/DT_PSA_OPCV_Siemens",
   "main": "https://github.com/Preliy/DT_PSA_OPCV",
