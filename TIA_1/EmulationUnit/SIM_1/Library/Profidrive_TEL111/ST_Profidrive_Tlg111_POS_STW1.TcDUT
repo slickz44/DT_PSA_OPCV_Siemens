@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_POS_STW1" Id="{7092676b-b3f4-49f4-ac2d-f9d8bf2dd21c}">
+    <Declaration><![CDATA[// POS_STW1 - positioning control word 1 (PZD2)
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_POS_STW1 :
+STRUCT
+	b0_BlockSelection0                 : BIT;	// traversing blocks are not modelled
+	b1_BlockSelection1                 : BIT;
+	b2_BlockSelection2                 : BIT;
+	b3_BlockSelection3                 : BIT;
+	b4_BlockSelection4                 : BIT;
+	b5_BlockSelection5                 : BIT;
+	b6_Reserved                        : BIT;
+	b7_Reserved                        : BIT;
+	b8_Absolute                        : BIT;	// 1 = absolute, 0 = relative
+	b9_DirectionPositive               : BIT;
+	b10_DirectionNegative               : BIT;
+	b11_Reserved                        : BIT;
+	b12_ContinuousTransfer              : BIT;	// 1 = take the target every cycle, 0 = on the STW1.6 edge
+	b13_Reserved                        : BIT;
+	b14_Setup                           : BIT;	// 1 = MDI setup (endless velocity)
+	b15_MdiSelection                    : BIT;	// 1 = MDI, 0 = traversing block mode
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

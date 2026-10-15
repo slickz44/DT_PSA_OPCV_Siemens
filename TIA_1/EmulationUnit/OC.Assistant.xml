@@ -8287,14 +8287,18 @@
         <Device Name="Index05_B_Exit" Type="FB_SensorBinary" />
         <Device Name="Index05_Y_Lift" Type="FB_Cylinder" />
         <Device Name="Index05_Y_Stopper" Type="FB_Cylinder" />
+        <Device Name="Lift01_B_AxisMax" Type="FB_SensorBinary" />
+        <Device Name="Lift01_B_AxisMin" Type="FB_SensorBinary" />
         <Device Name="Lift01_B_Detect" Type="FB_SensorBinary" />
         <Device Name="Lift01_B_Exit" Type="FB_SensorBinary" />
         <Device Name="Lift01_M_Conveyor" Type="FB_Drive" />
-        <Device Name="Lift01_Y_Lift" Type="FB_Cylinder" />
+        <Device Name="Lift01_Y_Lift" Type="FB_Profidrive_Telegram111" />
+        <Device Name="Lift02_B_AxisMax" Type="FB_SensorBinary" />
+        <Device Name="Lift02_B_AxisMin" Type="FB_SensorBinary" />
         <Device Name="Lift02_B_Detect" Type="FB_SensorBinary" />
         <Device Name="Lift02_B_Exit" Type="FB_SensorBinary" />
         <Device Name="Lift02_M_Conveyor" Type="FB_Drive" />
-        <Device Name="Lift02_Y_Lift" Type="FB_Cylinder" />
+        <Device Name="Lift02_Y_Lift" Type="FB_Profidrive_Telegram111" />
         <Device Name="Stopper01_B_Detect" Type="FB_SensorBinary" />
         <Device Name="Stopper01_B_Exit" Type="FB_SensorBinary" />
         <Device Name="Stopper01_Y_Stopper" Type="FB_Cylinder" />
@@ -8311,5 +8315,6 @@
         <Device Name="Transport02_M_Conveyor" Type="FB_Drive" />
       </Group>
     </Main>
+    <HiL />
   </Twincat>
 </Config>

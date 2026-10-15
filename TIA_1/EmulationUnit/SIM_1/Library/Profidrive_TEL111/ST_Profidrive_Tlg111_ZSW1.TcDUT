@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_ZSW1" Id="{da700b4a-1f23-45f6-90fe-f822ced0e271}">
+    <Declaration><![CDATA[// ZSW1 - status word 1 (telegram 111 PZD1), drive -> PLC
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_ZSW1 :
+STRUCT
+	b0_ReadyToSwitchOn                 : BIT;
+	b1_ReadyToOperate                  : BIT;
+	b2_OperationEnabled                : BIT;
+	b3_FaultPresent                    : BIT;
+	b4_NoCoastStopActive               : BIT;	// echo of STW1.1, as tested
+	b5_NoQuickStopActive               : BIT;	// echo of STW1.2, as tested
+	b6_SwitchingOnInhibited            : BIT;
+	b7_WarningPresent                  : BIT;
+	b8_FollowingErrorInTolerance       : BIT;	// always 1, as tested
+	b9_ControlRequested                : BIT;	// echo of STW1.10, as tested
+	b10_TargetPositionReached           : BIT;
+	b11_ReferencePointSet               : BIT;
+	b12_TraversingTaskAck               : BIT;	// level handshake with STW1.6
+	b13_DriveStationary                 : BIT;
+	b14_Accelerating                    : BIT;
+	b15_Decelerating                    : BIT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="E_Profidrive_Tlg111_HomingMethod" Id="{cf376276-7f62-4185-a1d1-23dbeb5372df}">
+    <Declaration><![CDATA[// Homing (STW1.11) as the Festo preset implements it.
+{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_Profidrive_Tlg111_HomingMethod :
+(
+	NegativeLimitSwitch	:= 17,	// search the negative limit, reference on its release edge
+	PositiveLimitSwitch	:= 18,	// search the positive limit, reference on its release edge
+	ActualPosition		:= 37	// the current position becomes the reference at once
+) INT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

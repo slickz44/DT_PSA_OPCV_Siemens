@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_POS_ZSW1" Id="{ff06ef5a-ad0f-474e-912d-c8bb832cd45f}">
+    <Declaration><![CDATA[// POS_ZSW1 - positioning status word 1 (PZD2)
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_POS_ZSW1 :
+STRUCT
+	b0_Reserved                        : BIT;
+	b1_Reserved                        : BIT;
+	b2_Reserved                        : BIT;
+	b3_Reserved                        : BIT;
+	b4_Reserved                        : BIT;
+	b5_Reserved                        : BIT;
+	b6_Reserved                        : BIT;
+	b7_Reserved                        : BIT;
+	b8_StopCamMinusActive              : BIT;	// negative limit switch active
+	b9_StopCamPlusActive               : BIT;	// positive limit switch active
+	b10_JoggingActive                   : BIT;
+	b11_HomingActive                    : BIT;
+	b12_Reserved                        : BIT;
+	b13_Reserved                        : BIT;
+	b14_SetupActive                     : BIT;
+	b15_MdiActive                       : BIT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

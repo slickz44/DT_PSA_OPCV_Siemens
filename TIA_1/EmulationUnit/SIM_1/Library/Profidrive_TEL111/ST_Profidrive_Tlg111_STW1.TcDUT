@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_STW1" Id="{78fd5d83-a50d-4d3d-b228-3839e88d912b}">
+    <Declaration><![CDATA[// STW1 - control word 1 (telegram 111 PZD1), PLC -> drive
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_STW1 :
+STRUCT
+	b0_On                              : BIT;	// 1 = ON, 0 = OFF1 (ramp stop)
+	b1_NoCoastStop                     : BIT;	// 1 = no OFF2, 0 = coast stop
+	b2_NoQuickStop                     : BIT;	// 1 = no OFF3, 0 = quick stop
+	b3_EnableOperation                 : BIT;
+	b4_DoNotRejectTask                 : BIT;	// 1 = do not reject traversing task
+	b5_NoIntermediateStop              : BIT;	// 1 = no intermediate stop
+	b6_ActivateTraversing              : BIT;	// rising edge starts an MDI task; level = ZSW1.12 handshake
+	b7_AcknowledgeFault                : BIT;	// rising edge
+	b8_Jog1                            : BIT;	// jog positive (as tested)
+	b9_Jog2                            : BIT;	// jog negative (as tested)
+	b10_ControlByPlc                    : BIT;	// required for any motion
+	b11_StartHoming                     : BIT;	// level; rising edge starts, dropping it cancels
+	b12_Reserved                        : BIT;
+	b13_Reserved                        : BIT;
+	b14_Reserved                        : BIT;
+	b15_Reserved                        : BIT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

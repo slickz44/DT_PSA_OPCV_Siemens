@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_POS_STW2" Id="{337fa4eb-1779-4aaf-98bc-4427885f832b}">
+    <Declaration><![CDATA[// POS_STW2 - positioning control word 2 (PZD3)
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_POS_STW2 :
+STRUCT
+	b0_Reserved                        : BIT;
+	b1_SetReferencePoint               : BIT;	// rising edge sets the current position as reference
+	b2_Reserved                        : BIT;
+	b3_Reserved                        : BIT;
+	b4_Reserved                        : BIT;
+	b5_IncrementalJog                  : BIT;	// read, not used
+	b6_Reserved                        : BIT;
+	b7_Reserved                        : BIT;
+	b8_Reserved                        : BIT;
+	b9_Reserved                        : BIT;
+	b10_Reserved                        : BIT;
+	b11_Reserved                        : BIT;
+	b12_Reserved                        : BIT;
+	b13_Reserved                        : BIT;
+	b14_SoftwareLimitActivation         : BIT;	// read, not used
+	b15_StopCamActivation               : BIT;	// gates the hardware limit switch monitoring
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
