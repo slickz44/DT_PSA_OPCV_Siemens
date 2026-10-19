@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
   <POU Name="FB_Profidrive_Telegram111" Id="{0d69c260-51fb-42cd-a1f7-b800bbb0c8d7}" SpecialFunc="None">
     <Declaration><![CDATA[(*
@@ -337,14 +337,25 @@ ELSIF _bActivateRising AND _bTraversingTaskAccepted THEN
 	_bTaskAcknowledged := TRUE;
 END_IF
 
-// ZSW1 - bits 0..2 / 6 from the GSM, masked by the fault overlay.
-stStatus.stZSW1.b0_ReadyToSwitchOn				:= NOT _bFault AND _fbGSM.nStatus.b0_ReadyToSwitchOn;
-stStatus.stZSW1.b1_ReadyToOperate				:= NOT _bFault AND _fbGSM.nStatus.b1_ReadyForOperation;
+// Derive all state bits from the same current state. The GSM status fields
+// describe its last executed state method and are stale after direct state overrides.
+// Calling the GSM again here would also execute a second state transition.
+stStatus.stZSW1.b0_ReadyToSwitchOn				:= NOT _bFault AND (
+    _fbGSM.eState = E_ProfidriveGSM_State.S2_ReadyForSwitchingOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S3_SwitchedOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S51_RampStop OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S52_QuickStop);
+stStatus.stZSW1.b1_ReadyToOperate				:= NOT _bFault AND (
+    _fbGSM.eState = E_ProfidriveGSM_State.S3_SwitchedOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S51_RampStop OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S52_QuickStop);
 stStatus.stZSW1.b2_OperationEnabled				:= _bOperationEnabled;
 stStatus.stZSW1.b3_FaultPresent					:= _bFault;
 stStatus.stZSW1.b4_NoCoastStopActive			:= stControl.stSTW1.b1_NoCoastStop;		// echo, as tested
 stStatus.stZSW1.b5_NoQuickStopActive			:= stControl.stSTW1.b2_NoQuickStop;		// echo, as tested
-stStatus.stZSW1.b6_SwitchingOnInhibited			:= NOT _bFault AND _fbGSM.nStatus.b6_SwitchingOnInhibited;
+stStatus.stZSW1.b6_SwitchingOnInhibited			:= NOT _bFault AND (_fbGSM.eState = E_ProfidriveGSM_State.S1_SwitchingOnInhibited);
 stStatus.stZSW1.b7_WarningPresent				:= bSimulateWarning;
 stStatus.stZSW1.b8_FollowingErrorInTolerance	:= TRUE;								// as tested
 stStatus.stZSW1.b9_ControlRequested				:= stControl.stSTW1.b10_ControlByPlc;		// echo, as tested

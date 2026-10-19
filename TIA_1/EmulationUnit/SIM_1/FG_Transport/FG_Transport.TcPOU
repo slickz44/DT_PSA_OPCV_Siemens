@@ -127,19 +127,25 @@ END_VAR
 // configuration; until then the drives see no telegram. Festo preset: 1 LU = 0.001 mm,
 // MDI_VELOCITY 1 = 1 mm/s. Homing method 17 searches B_AxisMin, the lower limit.
 // Positions are the twin's: 0 mm is the lower conveyor level.
-//Lift01_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs);
-//Lift01_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs);
-//Lift02_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs);
-//Lift02_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs);
+Lift01_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs.Q1020);
+Lift01_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs.I1020);
+Lift02_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs.Q1044);
+Lift02_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs.I1044);
 
 Lift01_Y_Lift.stConfig.eHomingMethod	:= E_Profidrive_Tlg111_HomingMethod.NegativeLimitSwitch;
 Lift01_Y_Lift.stConfig.bUseLimits		:= TRUE;
 Lift01_Y_Lift.stConfig.fLowerLimit		:= -20.0;
 Lift01_Y_Lift.stConfig.fUpperLimit		:= 380.0;
+Lift01_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
+
 Lift02_Y_Lift.stConfig.eHomingMethod	:= E_Profidrive_Tlg111_HomingMethod.NegativeLimitSwitch;
 Lift02_Y_Lift.stConfig.bUseLimits		:= TRUE;
 Lift02_Y_Lift.stConfig.fLowerLimit		:= -20.0;
 Lift02_Y_Lift.stConfig.fUpperLimit		:= 380.0;
+Lift01_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
+
+Lift01_Y_Lift.stConfig.bSwapProcessData := TRUE;
+Lift02_Y_Lift.stConfig.bSwapProcessData  := TRUE;
 ]]></ST>
       </Implementation>
     </Method>
@@ -265,6 +271,8 @@ Lift01_Y_Lift.bLimitNegActive	:= Lift01_B_AxisMin.bValue;
 Lift01_Y_Lift.bLimitPosActive	:= Lift01_B_AxisMax.bValue;
 Lift01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1012.3;		// _Plus  "Antrieb vorwaerts"
 Lift01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1012.2;		// _Minus "Antrieb rueckwaerts"
+Lift01_Y_Lift.bSTO := GVL_PLC.Outputs.Q60.0;
+
 
 // --- Lift02 - detect, exit, limits and carriage belt on byte 1013 ------
 GVL_PLC.Inputs.I1013.0	:= Lift02_B_Detect.bValue;
@@ -275,6 +283,7 @@ Lift02_Y_Lift.bLimitNegActive	:= Lift02_B_AxisMin.bValue;
 Lift02_Y_Lift.bLimitPosActive	:= Lift02_B_AxisMax.bValue;
 Lift02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1013.3;		// _Plus  "Antrieb vorwaerts"
 Lift02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1013.2;		// _Minus "Antrieb rueckwaerts"
+Lift02_Y_Lift.bSTO := GVL_PLC.Outputs.Q60.1;
 
 // --- Transport01 - the level 1 circulation belt, byte 1014 -------------------
 Transport01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1014.1;		// _Plus  "Antrieb vorwaerts"
