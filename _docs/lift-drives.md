@@ -39,17 +39,31 @@ It is built the Open Commissioning way, like `FB_SEW_MoviC_Position` in **OC_Pro
 | 11 | MDI_DEC, 16#4000 = 100 % | WARN_CODE (not written) |
 | 12 | — | — |
 
-## Addresses — not assigned yet
+## Telegram addresses and TwinCAT configuration
 
-| Drive | Status `%IB` | Control `%QB` |
+The local `FG_Transport.InitRun` implementation connects each simulated drive to 24 bytes in each direction:
+
+| Drive | Status (drive → PLC) | Control (PLC → drive) |
 |---|---|---|
-| Lift01 | *n* … *n*+23 | *m* … *m*+23 |
-| Lift02 | *n* … *n*+23 | *m* … *m*+23 |
+| Lift01 | `%IB1020` … `%IB1043` | `%QB1020` … `%QB1043` |
+| Lift02 | `%IB1044` … `%IB1067` | `%QB1044` … `%QB1067` |
 
-The telegram addresses come from the TIA hardware configuration and are **not assigned yet**.
-They go into `FG_Transport.InitRun` in SIM_1, which points each drive at its 24 bytes:
-`pControl := ADR(GVL_PLC.Outputs) + <first %QB>` and `pStatus := ADR(GVL_PLC.Inputs) + <first %IB>`.
-Until then the pointer lines are commented out and the drives see no telegram.
+```iecst
+Lift01_Y_Lift.pControl := ADR(GVL_PLC.Outputs.Q1020);
+Lift01_Y_Lift.pStatus  := ADR(GVL_PLC.Inputs.I1020);
+Lift02_Y_Lift.pControl := ADR(GVL_PLC.Outputs.Q1044);
+Lift02_Y_Lift.pStatus  := ADR(GVL_PLC.Inputs.I1044);
+```
+
+Match these byte addresses to the telegram start addresses in the TIA hardware configuration. The adapter's TIA hardware identifiers are not byte offsets and must not be substituted here.
+
+![TwinCAT EmulationUnit: telegram pointers and simulated lift parameters in FG_Transport.InitRun](images/twincat-servo-configuration.png)
+
+This screenshot documents the **TwinCAT simulation configuration**, not the modular Siemens actuator call. The old comment “NOT ASSIGNED YET” visible above the pointer assignments is stale; the assignments underneath are active.
+
+For both simulated lifts, the shown configuration selects `NegativeLimitSwitch`, enables a physical travel clamp from −20 to 380 mm, and enables `bSwapProcessData` for the Siemens process image. Keep the PLC's scaling and the emulation configuration consistent.
+
+**Review item in the captured configuration:** the reference-speed assignment in the Lift02 section still targets `Lift01_Y_Lift`. Lift01 is therefore assigned `2624.807` twice, while this initialization does not set Lift02's reference speed. Its structure default is `1000.0` unless changed elsewhere. Verify the intended reference speed for each axis against the PLC parameters before treating this screenshot as a copy-ready configuration. This documentation update does not modify the simulation code.
 
 The limit sensors are wired twice:
 
