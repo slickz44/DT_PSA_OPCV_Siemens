@@ -142,7 +142,7 @@ Lift02_Y_Lift.stConfig.eHomingMethod	:= E_Profidrive_Tlg111_HomingMethod.Negativ
 Lift02_Y_Lift.stConfig.bUseLimits		:= TRUE;
 Lift02_Y_Lift.stConfig.fLowerLimit		:= -20.0;
 Lift02_Y_Lift.stConfig.fUpperLimit		:= 380.0;
-Lift01_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
+Lift02_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
 
 Lift01_Y_Lift.stConfig.bSwapProcessData := TRUE;
 Lift02_Y_Lift.stConfig.bSwapProcessData  := TRUE;
