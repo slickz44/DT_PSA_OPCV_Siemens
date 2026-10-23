@@ -25,14 +25,18 @@ VAR_INPUT
 	Index05_B_Exit : FB_SensorBinary;
 	Index05_Y_Lift : FB_Cylinder;
 	Index05_Y_Stopper : FB_Cylinder;
+	Lift01_B_AxisMax : FB_SensorBinary;
+	Lift01_B_AxisMin : FB_SensorBinary;
 	Lift01_B_Detect : FB_SensorBinary;
 	Lift01_B_Exit : FB_SensorBinary;
 	Lift01_M_Conveyor : FB_Drive;
-	Lift01_Y_Lift : FB_Cylinder;
+	Lift01_Y_Lift : FB_Profidrive_Telegram111;
+	Lift02_B_AxisMax : FB_SensorBinary;
+	Lift02_B_AxisMin : FB_SensorBinary;
 	Lift02_B_Detect : FB_SensorBinary;
 	Lift02_B_Exit : FB_SensorBinary;
 	Lift02_M_Conveyor : FB_Drive;
-	Lift02_Y_Lift : FB_Cylinder;
+	Lift02_Y_Lift : FB_Profidrive_Telegram111;
 	Stopper01_B_Detect : FB_SensorBinary;
 	Stopper01_B_Exit : FB_SensorBinary;
 	Stopper01_Y_Stopper : FB_Cylinder;
@@ -72,10 +76,14 @@ END_VAR
 	Index05_B_Exit();
 	Index05_Y_Lift();
 	Index05_Y_Stopper();
+	Lift01_B_AxisMax();
+	Lift01_B_AxisMin();
 	Lift01_B_Detect();
 	Lift01_B_Exit();
 	Lift01_M_Conveyor();
 	Lift01_Y_Lift();
+	Lift02_B_AxisMax();
+	Lift02_B_AxisMin();
 	Lift02_B_Detect();
 	Lift02_B_Exit();
 	Lift02_M_Conveyor();
@@ -112,6 +120,32 @@ END_VAR
 	IF NOT bInitRun THEN RETURN; END_IF
 	bInitRun := FALSE;
 {endregion}
+
+// --- Lift servo drives: PROFIdrive telegram 111 (FB_Profidrive_Telegram111) ---
+// pControl / pStatus point at the telegram's 24 bytes in GVL_PLC.Outputs / .Inputs.
+// The byte offsets are NOT ASSIGNED YET - they come from the TIA hardware
+// configuration; until then the drives see no telegram. Festo preset: 1 LU = 0.001 mm,
+// MDI_VELOCITY 1 = 1 mm/s. Homing method 17 searches B_AxisMin, the lower limit.
+// Positions are the twin's: 0 mm is the lower conveyor level.
+Lift01_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs.Q1020);
+Lift01_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs.I1020);
+Lift02_Y_Lift.pControl	:= ADR(GVL_PLC.Outputs.Q1044);
+Lift02_Y_Lift.pStatus	:= ADR(GVL_PLC.Inputs.I1044);
+
+Lift01_Y_Lift.stConfig.eHomingMethod	:= E_Profidrive_Tlg111_HomingMethod.NegativeLimitSwitch;
+Lift01_Y_Lift.stConfig.bUseLimits		:= TRUE;
+Lift01_Y_Lift.stConfig.fLowerLimit		:= -20.0;
+Lift01_Y_Lift.stConfig.fUpperLimit		:= 380.0;
+Lift01_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
+
+Lift02_Y_Lift.stConfig.eHomingMethod	:= E_Profidrive_Tlg111_HomingMethod.NegativeLimitSwitch;
+Lift02_Y_Lift.stConfig.bUseLimits		:= TRUE;
+Lift02_Y_Lift.stConfig.fLowerLimit		:= -20.0;
+Lift02_Y_Lift.stConfig.fUpperLimit		:= 380.0;
+Lift02_Y_Lift.stConfig.fReferenceSpeed := 2624.807;
+
+Lift01_Y_Lift.stConfig.bSwapProcessData := TRUE;
+Lift02_Y_Lift.stConfig.bSwapProcessData  := TRUE;
 ]]></ST>
       </Implementation>
     </Method>
@@ -140,8 +174,11 @@ END_VAR
 //     EXTENDING RELEASES. Nine authored Function entries in the twin say the
 //     opposite and are known to be wrong; the table agrees with reality, not
 //     with the twin's prose.
-//   * A LIFT IS RETRACTED WHEN IT IS DOWN. InHome "Heber ist unten",
-//     HomePos "Heber senken".
+//   * THE LIFT CARRIAGES ARE SERVO AXES NOW, NOT CYLINDERS. Each is a PROFIdrive
+//     telegram 111 drive (FB_Profidrive_Telegram111), wired by pointer in InitRun
+//     (byte offsets still to be assigned). Q1012/1013 .0/.1 (the old "Heber senken /
+//     heben") are free; I1012/1013 .2/.3 now carry the B_AxisMin / B_AxisMax limit
+//     sensors.
 //   * ON A DRIVE, nControl.0 IS FORWARDS AND nControl.1 IS BACKWARDS. The table
 //     names them: _Plus is "Antrieb vorwaerts", _Minus is "Antrieb rueckwaerts",
 //     and Plus is always the LOWER address of the pair. THE PREVIOUS MAPPING HAD
@@ -224,25 +261,29 @@ GVL_PLC.Inputs.I1011.1	:= Stopper04_B_Exit.bValue;
 GVL_PLC.Inputs.I1011.4	:= Stopper04_Y_Stopper.bRetracted;		// "Stopper geschlossen"
 Stopper04_Y_Stopper.bExtend	:= GVL_PLC.Outputs.Q1011.2;		// "Stopper oeffnen"
 
-// --- Lift01 - detect, exit, lift and carriage belt on byte 1012 --------
+// --- Lift01 - detect, exit, limits and carriage belt on byte 1012 ------
 GVL_PLC.Inputs.I1012.0	:= Lift01_B_Detect.bValue;
 GVL_PLC.Inputs.I1012.1	:= Lift01_B_Exit.bValue;
-GVL_PLC.Inputs.I1012.2	:= Lift01_Y_Lift.bRetracted;		// "Heber ist unten"
-GVL_PLC.Inputs.I1012.3	:= Lift01_Y_Lift.bExtended;		// "Heber ist oben"
-Lift01_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1012.0;		// "Heber senken"
-Lift01_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1012.1;		// "Heber heben"
+GVL_PLC.Inputs.I1012.2	:= Lift01_B_AxisMin.bValue;		// lower travel limit
+GVL_PLC.Inputs.I1012.3	:= Lift01_B_AxisMax.bValue;		// upper travel limit
+// The same two sensors are the drive's hardware limit switches (homing method 17).
+Lift01_Y_Lift.bLimitNegActive	:= Lift01_B_AxisMin.bValue;
+Lift01_Y_Lift.bLimitPosActive	:= Lift01_B_AxisMax.bValue;
 Lift01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1012.3;		// _Plus  "Antrieb vorwaerts"
 Lift01_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1012.2;		// _Minus "Antrieb rueckwaerts"
+Lift01_Y_Lift.bSTO := GVL_PLC.Outputs.Q60.0;
 
-// --- Lift02 - detect, exit, lift and carriage belt on byte 1013 --------
+
+// --- Lift02 - detect, exit, limits and carriage belt on byte 1013 ------
 GVL_PLC.Inputs.I1013.0	:= Lift02_B_Detect.bValue;
 GVL_PLC.Inputs.I1013.1	:= Lift02_B_Exit.bValue;
-GVL_PLC.Inputs.I1013.2	:= Lift02_Y_Lift.bRetracted;		// "Heber ist unten"
-GVL_PLC.Inputs.I1013.3	:= Lift02_Y_Lift.bExtended;		// "Heber ist oben"
-Lift02_Y_Lift.bRetract	:= GVL_PLC.Outputs.Q1013.0;		// "Heber senken"
-Lift02_Y_Lift.bExtend	:= GVL_PLC.Outputs.Q1013.1;		// "Heber heben"
+GVL_PLC.Inputs.I1013.2	:= Lift02_B_AxisMin.bValue;		// lower travel limit
+GVL_PLC.Inputs.I1013.3	:= Lift02_B_AxisMax.bValue;		// upper travel limit
+Lift02_Y_Lift.bLimitNegActive	:= Lift02_B_AxisMin.bValue;
+Lift02_Y_Lift.bLimitPosActive	:= Lift02_B_AxisMax.bValue;
 Lift02_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1013.3;		// _Plus  "Antrieb vorwaerts"
 Lift02_M_Conveyor.nControl.1	:= GVL_PLC.Outputs.Q1013.2;		// _Minus "Antrieb rueckwaerts"
+Lift02_Y_Lift.bSTO := GVL_PLC.Outputs.Q60.1;
 
 // --- Transport01 - the level 1 circulation belt, byte 1014 -------------------
 Transport01_M_Conveyor.nControl.0	:= GVL_PLC.Outputs.Q1014.1;		// _Plus  "Antrieb vorwaerts"

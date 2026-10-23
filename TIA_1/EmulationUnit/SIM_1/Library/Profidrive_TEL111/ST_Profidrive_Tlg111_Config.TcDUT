@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_Config" Id="{63f74e2e-6607-4513-8f94-d4f009c1be66}">
+    <Declaration><![CDATA[// Parameters of FB_Profidrive_Telegram111. Defaults are the Festo preset the
+// behaviour was tested with: 1 LU = 0.001 mm, MDI_VELOCITY 1 = 1 mm/s.
+TYPE ST_Profidrive_Tlg111_Config :
+STRUCT
+	bForceMode					: BOOL;			// ignore process data from the fieldbus
+	bSwapProcessData			: BOOL := TRUE;	// Siemens fieldbus data is big-endian
+
+	fPositionScale				: LREAL := 0.001;	// mm per LU (Festo position factor 10^-6 m)
+	fVelocityScale				: LREAL := 1.0;		// mm/s per MDI_VELOCITY unit (Festo velocity factor 10^-3 m/s)
+	fPositionOffset				: LREAL := 0.0;		// mm, simulation coordinate offset
+	fReferenceSpeed				: LREAL := 1000.0;	// mm/s at NIST_B = 16#40000000 - match the PLC's reference velocity
+
+	fJogSpeed					: LREAL := 50.0;	// mm/s at 100 % override, jog 1 / jog 2
+	fAcceleration				: LREAL := 1000.0;	// mm/s2, base value; MDI_ACC scales it in MDI
+	fDeceleration				: LREAL := 1000.0;	// mm/s2, base value; MDI_DEC scales it in MDI
+
+	eHomingMethod				: E_Profidrive_Tlg111_HomingMethod := E_Profidrive_Tlg111_HomingMethod.ActualPosition;
+	fHomingSearchSpeed			: LREAL := 10.0;	// mm/s, towards the switch
+	fHomingCrawlSpeed			: LREAL := 5.0;		// mm/s, back off the switch
+	fHomingTimeout				: LREAL := 120.0;	// s, includes time at zero override
+
+	bHardwareLimitMonitoring	: BOOL := TRUE;		// also needs POS_STW2.15 from the PLC
+	bUseLimits					: BOOL;				// hard clamp of the physical travel
+	fLowerLimit					: LREAL;			// mm
+	fUpperLimit					: LREAL;			// mm
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

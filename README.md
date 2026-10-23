@@ -120,7 +120,7 @@ Planned improvements and ideas for future development:
 - **Production counters:** Add daily and shift counters for OK/NOK parts, tracked by product number.
 - **Parallel sequences:** Introduce parallel sequence execution to reduce cycle time.
 - **Bottleneck analysis:** Identify stations and process steps that limit throughput.
-- **Lift drives:** Explore PROFIdrive-based control for the two lifts.
+- **Lift drives:** The emulation unit simulates both lifts as PROFIdrive telegram 111 drives - see [Lift drives](_docs/lift-drives.md). Open: the telegram addresses in the TIA hardware configuration.
 - **Diagnostics:** Extend fault reporting to identify the affected actuators and step sequences.
 
 These topics are open for discussion. Priorities and implementation details may evolve.

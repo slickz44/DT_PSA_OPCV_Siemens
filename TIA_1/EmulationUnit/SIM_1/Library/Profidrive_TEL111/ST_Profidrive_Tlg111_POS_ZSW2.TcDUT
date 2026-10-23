@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_POS_ZSW2" Id="{2d651138-ca91-453c-9402-6acaa1956765}">
+    <Declaration><![CDATA[// POS_ZSW2 - positioning status word 2 (PZD3)
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_POS_ZSW2 :
+STRUCT
+	b0_Reserved                        : BIT;
+	b1_Reserved                        : BIT;
+	b2_Reserved                        : BIT;
+	b3_Reserved                        : BIT;
+	b4_MovesForwards                   : BIT;
+	b5_MovesBackwards                  : BIT;
+	b6_Reserved                        : BIT;
+	b7_Reserved                        : BIT;
+	b8_Reserved                        : BIT;
+	b9_Reserved                        : BIT;
+	b10_Reserved                        : BIT;
+	b11_Reserved                        : BIT;
+	b12_Reserved                        : BIT;
+	b13_Reserved                        : BIT;
+	b14_Reserved                        : BIT;
+	b15_TraversingCommandActive         : BIT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

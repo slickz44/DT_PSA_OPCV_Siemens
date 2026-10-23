@@ -41,6 +41,39 @@
     <Compile Include="Library\FB_Camera.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\Profidrive_TEL111\E_Profidrive_Tlg111_HomingMethod.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\FB_Profidrive_Telegram111.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_Config.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_Control.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_POS_STW1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_POS_STW2.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_POS_ZSW1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_POS_ZSW2.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_STW1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_ZSW1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -61,6 +94,14 @@
     <PlaceholderReference Include="OC_Core">
       <DefaultResolution>OC_Core, * (Open Commissioning)</DefaultResolution>
       <Namespace>OC_Core</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="OC_Profinet">
+      <DefaultResolution>OC_Profinet, * (Open Commissioning)</DefaultResolution>
+      <Namespace>OC_Profinet</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="OC_Profisafe">
+      <DefaultResolution>OC_Profisafe, * (Open Commissioning)</DefaultResolution>
+      <Namespace>OC_Profisafe</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Math">
       <DefaultResolution>Tc2_Math, * (Beckhoff Automation GmbH)</DefaultResolution>
@@ -92,13 +133,9 @@
     <Folder Include="FG_System" />
     <Folder Include="FG_Transport" />
     <Folder Include="Library" />
+    <Folder Include="Library\Profidrive_TEL111" />
     <Folder Include="Sil" />
     <Folder Include="Sil\PLC" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="OC.tmc">
-      <SubType>Content</SubType>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="SIM_1.tmc">

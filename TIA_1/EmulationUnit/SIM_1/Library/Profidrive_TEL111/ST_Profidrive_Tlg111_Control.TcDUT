@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_Control" Id="{aa9cecc2-958f-42ac-97d4-0bd54ccde005}">
+    <Declaration><![CDATA[// Telegram 111, PLC -> drive. 12 words = 24 bytes on the wire, big-endian.
+// GetControlData copies field by field with byte swap, so this layout is only the
+// in-memory view; pack_mode 1 keeps it identical to the wire order anyway.
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_Control :
+STRUCT
+	stSTW1				: ST_Profidrive_Tlg111_STW1;		// PZD1
+	stPosSTW1			: ST_Profidrive_Tlg111_POS_STW1;	// PZD2
+	stPosSTW2			: ST_Profidrive_Tlg111_POS_STW2;	// PZD3
+	nSTW2				: WORD;							// PZD4, sign of life - not evaluated
+	nOverride			: INT;							// PZD5, 16#4000 = 100 %
+	nMdiTargetPosition	: DINT;							// PZD6+7, MDI_TARPOS [LU]
+	nMdiVelocity		: DINT;							// PZD8+9, MDI_VELOCITY
+	nMdiAcc				: INT;							// PZD10, 16#4000 = 100 % of base acceleration
+	nMdiDec				: INT;							// PZD11, 16#4000 = 100 % of base deceleration
+	nPzd12				: WORD;							// PZD12, user - not evaluated
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

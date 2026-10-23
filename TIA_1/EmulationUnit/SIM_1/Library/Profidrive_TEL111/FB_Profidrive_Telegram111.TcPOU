@@ -1,0 +1,1028 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <POU Name="FB_Profidrive_Telegram111" Id="{0d69c260-51fb-42cd-a1f7-b800bbb0c8d7}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	FB_Profidrive_Telegram111 simulates a positioning drive on PROFIdrive standard
+	telegram 111 (EPOS basic positioner, MDI) - the lift servo drives of FG_Transport.
+
+	THE BEHAVIOUR IS ANDREAS' TESTED MODEL, PORTED ONE TO ONE. It was proven against the
+	TIA program as realvirtual scripts (Siemens/_data/UnityDevScripts: ProfidriveAxisBase,
+	Drive_Telegram111, FestoAxis, ProfidriveMotionProfile - Festo preset). The order of
+	every decision below is theirs, including the quirks the PLC was tested against:
+	ZSW1.4/.5/.9 echo the command bits, ZSW1.8 is always 1, a reference sets XIST_A = 0
+	and never moves the axis.
+
+	Built the Open Commissioning way, like OC_Profinet's FB_SEW_MoviC_Position:
+	  - FB_ProfidriveGSM (OC_Profinet) is the PROFIdrive general state machine
+	    (S1..S4, S51 ramp stop, S52 quick stop). It has no fault state, so the script's
+	    fault, STO and CtrlEnable handling sits on top of it.
+	  - pControl / pStatus point into the fieldbus image; the words are copied field by
+	    field with byte swap (stConfig.bSwapProcessData), as Siemens data is big-endian.
+	  - ControlData is the physical position in mm, so the Unity DrivePosition follows it.
+	The motion profile is the script's trapezoid integrator in 1 ms sub-steps
+	(TrapStep), not OC_Core FB_DriveControl - it is what was tested: velocity and
+	override act live, it never reverses before standstill, and it snaps onto the target.
+
+	Not modelled (as in the scripts): traversing blocks, STW2/ZSW2 sign of life, MELDW,
+	fault/warning codes, incremental jog, software limits, following error, modulo.
+
+	Disclaimer: independent simulation, not affiliated with or endorsed by Siemens or
+	Festo. No guarantee of completeness; the real drive may behave differently.
+*)
+{attribute 'reflection'}
+FUNCTION_BLOCK FB_Profidrive_Telegram111 EXTENDS FB_LinkDataReal
+VAR_INPUT
+	pControl 			: PVOID;	// process data from the fieldbus, >= 24 bytes
+	pStatus 			: PVOID;	// process data to the fieldbus, >= 24 bytes
+	stControl 			: ST_Profidrive_Tlg111_Control;	// read from the fieldbus
+	stConfig 			: ST_Profidrive_Tlg111_Config;	// parameters of the device
+
+	bSTO				: BOOL := TRUE;	// TRUE = torque released; FALSE = STO (immediate kinematic stop)
+	bCtrlEnable			: BOOL := TRUE;	// Festo CTRL-EN digital input; FALSE holds the drive in S3
+	bLimitNegActive		: BOOL;			// negative hardware limit switch made (active-high)
+	bLimitPosActive		: BOOL;			// positive hardware limit switch made (active-high)
+	bSimulateFault		: BOOL;
+	bSimulateWarning	: BOOL;
+END_VAR
+
+VAR_OUTPUT
+	stStatus			: ST_Profidrive_Tlg111_Status;	// written to the fieldbus
+	fValue				: REAL;		// = ControlData, position to the twin [mm]
+	bReferenced			: BOOL;		// ZSW1.11
+	fActualPosition		: LREAL;	// physical position [mm]
+	fActualVelocity		: LREAL;	// physical velocity [mm/s], signed
+END_VAR
+
+VAR
+	{attribute 'instance-path'}
+	{attribute 'noinit'}
+	_sPath						: STRING;
+
+	_fbGSM						: FB_ProfidriveGSM;
+
+	// --- Physical axis (the script's realvirtual Drive) -------------------------
+	_fPosition					: LREAL;	// mm
+	_fVelocity					: LREAL;	// mm/s
+	_fOldVelocity				: LREAL;
+	_fDriveTargetPosition		: LREAL;	// Drive.TargetPosition
+	_fDriveTargetSpeed			: LREAL;	// Drive.TargetSpeed, magnitude
+	_bJogForward				: BOOL;		// Drive.JogForward
+	_bJogBackward				: BOOL;		// Drive.JogBackward
+	_bAtTarget					: BOOL;		// Drive.IsAtTarget
+	_bRunning					: BOOL;		// Drive.IsRunning
+
+	// --- Decoded set values -----------------------------------------------------
+	_fTargetPosition			: LREAL;	// decoded MDI_TARPOS, absolute [mm]
+	_fTargetVelocity			: LREAL;	// decoded MDI_VELOCITY [mm/s]
+	_fOverride					: LREAL := 1.0;
+	_fAccOverride				: LREAL := 1.0;
+	_fDecOverride				: LREAL := 1.0;
+	_fEffectiveAcceleration		: LREAL;
+	_fEffectiveDeceleration		: LREAL;
+	_fCoordinateOffset			: LREAL;
+	_bDynamicsError				: BOOL;
+	_fDeltaTime					: LREAL;	// s, real time
+	_fSimDeltaTime				: LREAL;	// s, scaled by the OC time scaling
+
+	// --- Edges (taken every cycle, also under STO: an edge is never replayed) ---
+	_bOldActivate				: BOOL;
+	_bOldAck					: BOOL;
+	_bOldSetRef					: BOOL;
+	_bOldStartHoming			: BOOL;
+	_bActivateRising			: BOOL;
+	_bAckRising					: BOOL;
+	_bSetRefRising				: BOOL;
+
+	// --- Limit switches (FestoAxis) ---------------------------------------------
+	_bLimitMonitoring			: BOOL;		// configured AND POS_STW2.15
+	_bNegLimitActive			: BOOL;
+	_bPosLimitActive			: BOOL;
+
+	// --- Axis state (ProfidriveAxisBase) ----------------------------------------
+	_bFault						: BOOL;		// the script's Fault state, overlaid on the GSM
+	_bStoActive					: BOOL;
+	_bStoRestartRequired		: BOOL;
+	_bStoRequiresNewMdiStart	: BOOL;
+	_bPositioningActive			: BOOL;
+	_bWasJogging				: BOOL;
+	_fRelativeOrigin			: LREAL;
+	_bHasRelativeOrigin			: BOOL;
+	_bControlledStopping		: BOOL;
+	_bReferenceAfterStopping	: BOOL;
+	_bReferencePointSet			: BOOL;
+	_fHomingOffset				: LREAL;
+	_nHomingDirection			: INT;
+	_bHomingReturning			: BOOL;
+	_fHomingElapsed				: LREAL;
+	_bHomingActive				: BOOL;
+	_sHomingError				: STRING;
+	_bTraversingTaskAccepted	: BOOL;
+	_bMdiActive					: BOOL;
+	_bTaskAcknowledged			: BOOL;
+
+	// --- Diagnosis ---------------------------------------------------------------
+	_bOperationEnabled			: BOOL;
+	_bStandstill				: BOOL := TRUE;
+	_bAccelerating				: BOOL;
+	_bDecelerating				: BOOL;
+	_bMovingForward				: BOOL;
+	_bMovingBackward			: BOOL;
+	_bCommandActive				: BOOL;
+	_bTargetReached				: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+InitRun();
+
+GetControlData();
+Cycle();
+SetStatusData();]]></ST>
+    </Implementation>
+    <Method Name="ApplyMotionProfile" Id="{643b1de3-bb10-4cfb-aeea-fa801849eac8}">
+      <Declaration><![CDATA[METHOD PRIVATE ApplyMotionProfile : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bMdi		: BOOL;
+	bHasTarget	: BOOL;
+	bReached	: BOOL;
+	fRequested	: LREAL;
+	fTarget		: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bMdi := stControl.stPosSTW1.b15_MdiSelection AND NOT _bHomingActive
+	AND NOT stControl.stSTW1.b11_StartHoming
+	AND NOT stControl.stSTW1.b8_Jog1 AND NOT stControl.stSTW1.b9_Jog2;
+_fEffectiveAcceleration := stConfig.fAcceleration * SEL(bMdi, 1.0, _fAccOverride);
+_fEffectiveDeceleration := stConfig.fDeceleration * SEL(bMdi AND NOT _bControlledStopping, 1.0, _fDecOverride);
+IF _bDynamicsError THEN
+	StopImmediately();
+	RETURN;
+END_IF
+IF bMdi AND (_fEffectiveAcceleration <= 0.0 OR _fEffectiveDeceleration <= 0.0) THEN
+	// Do not continue an unbrakeable request. A new command is required after restoration.
+	StopDrive();
+	_bStoRequiresNewMdiStart := TRUE;
+	_fEffectiveDeceleration := stConfig.fDeceleration;
+END_IF
+
+IF NOT _bControlledStopping THEN
+	IF _bPositioningActive THEN
+		bHasTarget	:= TRUE;
+		fTarget		:= _fDriveTargetPosition;
+		fRequested	:= _fDriveTargetSpeed;
+	ELSIF _bJogForward THEN
+		fRequested	:= _fDriveTargetSpeed;
+	ELSIF _bJogBackward THEN
+		fRequested	:= -_fDriveTargetSpeed;
+	END_IF
+END_IF
+
+bReached := TrapStep(fPosition := _fPosition, fVelocity := _fVelocity,
+	bHasTarget := bHasTarget, fTarget := fTarget, fRequestedVelocity := fRequested,
+	fAcceleration := _fEffectiveAcceleration, fDeceleration := _fEffectiveDeceleration,
+	fDeltaTime := _fSimDeltaTime);
+
+IF stConfig.bUseLimits THEN
+	IF _fPosition < stConfig.fLowerLimit THEN
+		_fPosition := stConfig.fLowerLimit; _fVelocity := 0; StopDrive(); bReached := FALSE;
+	END_IF
+	IF _fPosition > stConfig.fUpperLimit THEN
+		_fPosition := stConfig.fUpperLimit; _fVelocity := 0; StopDrive(); bReached := FALSE;
+	END_IF
+END_IF
+
+_bRunning := ABS(_fVelocity) > 0.00001;
+IF bHasTarget AND _fSimDeltaTime > 0.0 THEN
+	_bAtTarget := bReached;
+END_IF
+IF _bControlledStopping AND NOT _bRunning THEN
+	_bControlledStopping := FALSE;
+	_fVelocity := 0;
+	IF _bReferenceAfterStopping THEN
+		_bReferenceAfterStopping	:= FALSE;
+		_bReferencePointSet			:= TRUE;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="BeginHoming" Id="{7360f9db-d73a-4fd4-99e0-d9d3bdd2b38b}">
+      <Declaration><![CDATA[METHOD PRIVATE BeginHoming : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ABS(_fVelocity) >= 0.01 THEN
+	FailHoming('Start homing requires standstill.');
+	RETURN;
+END_IF
+StopDrive();
+_bReferencePointSet	:= FALSE;
+_sHomingError		:= '';
+CASE stConfig.eHomingMethod OF
+	E_Profidrive_Tlg111_HomingMethod.NegativeLimitSwitch:	_nHomingDirection := -1;
+	E_Profidrive_Tlg111_HomingMethod.PositiveLimitSwitch:	_nHomingDirection := 1;
+ELSE
+	_nHomingDirection := 0;
+END_CASE
+IF _nHomingDirection = 0 THEN
+	SetCurrentPositionAsReference();
+	RETURN;
+END_IF
+// Both switches are always wired here, so "configured" is the monitoring itself.
+IF NOT _bLimitMonitoring OR NOT (stConfig.fHomingSearchSpeed > 0.0)
+	OR NOT (stConfig.fHomingCrawlSpeed > 0.0) OR NOT (stConfig.fHomingTimeout > 0.0) THEN
+	FailHoming('Homing requires active limit monitoring and positive speeds/timeout.');
+	RETURN;
+END_IF
+IF _nHomingDirection < 0 THEN
+	_bHomingReturning := _bNegLimitActive;
+ELSE
+	_bHomingReturning := _bPosLimitActive;
+END_IF
+_fHomingElapsed	:= 0;
+_bHomingActive	:= TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CallStateMachine" Id="{8d178cdf-3c94-416b-93d2-6bece145d1df}">
+      <Declaration><![CDATA[METHOD PRIVATE CallStateMachine : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_fbGSM.bStandstill					:= ABS(_fVelocity) < 0.01;
+_fbGSM.nControl.b0_On				:= stControl.stSTW1.b0_On;
+_fbGSM.nControl.b1_CoastStop		:= stControl.stSTW1.b1_NoCoastStop;
+_fbGSM.nControl.b2_QuickStop		:= stControl.stSTW1.b2_NoQuickStop;
+_fbGSM.nControl.b3_EnableOperation	:= stControl.stSTW1.b3_EnableOperation;
+_fbGSM();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Cycle" Id="{95273e35-b17f-45a5-b127-53ee592587c1}">
+      <Declaration><![CDATA[METHOD PRIVATE Cycle : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Unity init: restore the persisted position (OC metadata snapshot).
+IF SUPER^.Status.7 THEN
+	_fPosition := StatusData;
+	_fVelocity := 0;
+END_IF
+
+_fDeltaTime		:= GVL_Core.fbSystem.fDeltaTime;
+_fSimDeltaTime	:= _fDeltaTime * GVL_Core.fbSystem.fTimeScaling;
+
+// ProfidriveAxisBase.CalcFixedUpdate
+DecodeTelegram();
+IF Safety() THEN
+	UpdateDiagnosis();
+	EncodeTelegram();
+	RETURN;
+END_IF
+
+// ProfidriveAxisBase.EvaluateAxis
+DecodeValues();
+UpdateDynamics();
+StateMachine();
+EvaluateMotion();
+ApplyMotionProfile();
+UpdateDiagnosis();
+EncodeTelegram();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DecodeTelegram" Id="{1a652dec-e350-4cfb-bf18-e17826179c60}">
+      <Declaration><![CDATA[METHOD PRIVATE DecodeTelegram : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Drive_Telegram111.ReadTelegram: the edges. FestoAxis.ReadAxisConfiguration: the limits.
+_bActivateRising	:= stControl.stSTW1.b6_ActivateTraversing AND NOT _bOldActivate;
+_bAckRising			:= stControl.stSTW1.b7_AcknowledgeFault AND NOT _bOldAck;
+_bSetRefRising		:= stControl.stPosSTW2.b1_SetReferencePoint AND NOT _bOldSetRef;
+_bOldActivate		:= stControl.stSTW1.b6_ActivateTraversing;
+_bOldAck			:= stControl.stSTW1.b7_AcknowledgeFault;
+_bOldSetRef			:= stControl.stPosSTW2.b1_SetReferencePoint;
+
+// The Festo inputs are normally closed (input FALSE = active); the twin's limit
+// sensors are active-high, so they arrive here already as "active".
+_bNegLimitActive	:= bLimitNegActive;
+_bPosLimitActive	:= bLimitPosActive;
+_bLimitMonitoring	:= stConfig.bHardwareLimitMonitoring AND stControl.stPosSTW2.b15_StopCamActivation;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DecodeValues" Id="{f3836438-d0d4-4884-9450-3a3f75b94792}">
+      <Declaration><![CDATA[METHOD PRIVATE DecodeValues : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ProfidriveAxisBase.UpdateDriveValues
+_fCoordinateOffset	:= stConfig.fPositionOffset + _fHomingOffset;
+_fTargetPosition	:= DINT_TO_LREAL(stControl.nMdiTargetPosition) * stConfig.fPositionScale + _fCoordinateOffset;
+// FestoAxis, integer encoding: MDI_VELOCITY is read as unsigned, as tested.
+_fTargetVelocity	:= UDINT_TO_LREAL(DINT_TO_UDINT(stControl.nMdiVelocity)) * stConfig.fVelocityScale;
+_fOverride			:= LIMIT(0.0, INT_TO_LREAL(stControl.nOverride) / 16384.0, 2.0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EncodeTelegram" Id="{c859ac6a-ac40-4d95-9f27-6ab26dd4b190}">
+      <Declaration><![CDATA[METHOD PRIVATE EncodeTelegram : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	fRaw	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Drive_Telegram111.WriteFeedback
+IF NOT stControl.stSTW1.b6_ActivateTraversing OR NOT _bOperationEnabled THEN
+	_bTaskAcknowledged := FALSE;
+ELSIF _bActivateRising AND _bTraversingTaskAccepted THEN
+	_bTaskAcknowledged := TRUE;
+END_IF
+
+// Derive all state bits from the same current state. The GSM status fields
+// describe its last executed state method and are stale after direct state overrides.
+// Calling the GSM again here would also execute a second state transition.
+stStatus.stZSW1.b0_ReadyToSwitchOn				:= NOT _bFault AND (
+    _fbGSM.eState = E_ProfidriveGSM_State.S2_ReadyForSwitchingOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S3_SwitchedOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S51_RampStop OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S52_QuickStop);
+stStatus.stZSW1.b1_ReadyToOperate				:= NOT _bFault AND (
+    _fbGSM.eState = E_ProfidriveGSM_State.S3_SwitchedOn OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S51_RampStop OR
+    _fbGSM.eState = E_ProfidriveGSM_State.S52_QuickStop);
+stStatus.stZSW1.b2_OperationEnabled				:= _bOperationEnabled;
+stStatus.stZSW1.b3_FaultPresent					:= _bFault;
+stStatus.stZSW1.b4_NoCoastStopActive			:= stControl.stSTW1.b1_NoCoastStop;		// echo, as tested
+stStatus.stZSW1.b5_NoQuickStopActive			:= stControl.stSTW1.b2_NoQuickStop;		// echo, as tested
+stStatus.stZSW1.b6_SwitchingOnInhibited			:= NOT _bFault AND (_fbGSM.eState = E_ProfidriveGSM_State.S1_SwitchingOnInhibited);
+stStatus.stZSW1.b7_WarningPresent				:= bSimulateWarning;
+stStatus.stZSW1.b8_FollowingErrorInTolerance	:= TRUE;								// as tested
+stStatus.stZSW1.b9_ControlRequested				:= stControl.stSTW1.b10_ControlByPlc;		// echo, as tested
+stStatus.stZSW1.b10_TargetPositionReached		:= _bTargetReached
+	AND NOT (stControl.stSTW1.b8_Jog1 OR stControl.stSTW1.b9_Jog2) AND NOT stControl.stPosSTW1.b14_Setup;
+stStatus.stZSW1.b11_ReferencePointSet			:= _bReferencePointSet;
+stStatus.stZSW1.b12_TraversingTaskAck			:= _bTaskAcknowledged;
+stStatus.stZSW1.b13_DriveStationary				:= _bStandstill;
+stStatus.stZSW1.b14_Accelerating				:= _bAccelerating;
+stStatus.stZSW1.b15_Decelerating				:= _bDecelerating;
+
+// POS_ZSW1 has its own layout; copying ZSW1 here reports false modes and limits.
+stStatus.stPosZSW1.b8_StopCamMinusActive	:= _bLimitMonitoring AND _bNegLimitActive;
+stStatus.stPosZSW1.b9_StopCamPlusActive		:= _bLimitMonitoring AND _bPosLimitActive;
+stStatus.stPosZSW1.b10_JoggingActive		:= _bWasJogging AND NOT _bHomingActive AND _bOperationEnabled;
+stStatus.stPosZSW1.b11_HomingActive			:= _bHomingActive;
+stStatus.stPosZSW1.b14_SetupActive			:= _bMdiActive AND stControl.stPosSTW1.b14_Setup;
+stStatus.stPosZSW1.b15_MdiActive			:= _bMdiActive;
+
+stStatus.stPosZSW2.b4_MovesForwards				:= _bMovingForward;
+stStatus.stPosZSW2.b5_MovesBackwards			:= _bMovingBackward;
+stStatus.stPosZSW2.b15_TraversingCommandActive	:= _bCommandActive;
+
+// XIST_A [LU], rounded, saturated.
+IF stConfig.fPositionScale <> 0.0 THEN
+	fRaw := (_fPosition - _fCoordinateOffset) / stConfig.fPositionScale;
+	stStatus.nXistA := LREAL_TO_DINT(LIMIT(-2147483648.0, fRaw, 2147483647.0));
+ELSE
+	stStatus.nXistA := 0;
+END_IF
+// NIST_B, 16#40000000 = fReferenceSpeed, truncated, saturated.
+IF stConfig.fReferenceSpeed <> 0.0 THEN
+	fRaw := _fVelocity / stConfig.fReferenceSpeed * 1073741824.0;
+	stStatus.nNistB := TRUNC(LIMIT(-2147483648.0, fRaw, 2147483647.0));
+ELSE
+	stStatus.nNistB := 0;
+END_IF
+
+bReferenced		:= _bReferencePointSet;
+fActualPosition	:= _fPosition;
+fActualVelocity	:= _fVelocity;
+
+// To the twin: the physical position, which the Unity DrivePosition follows.
+ControlData	:= LREAL_TO_REAL(_fPosition);
+fValue		:= ControlData;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EvaluateMotion" Id="{5325cb45-ac2b-4533-9de8-302881fa5104}">
+      <Declaration><![CDATA[METHOD PRIVATE EvaluateMotion : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bStartHoming		: BOOL;
+	bStartHomingRising	: BOOL;
+	bJogRequested		: BOOL;
+	bOperation			: BOOL;
+	fSpeed				: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ProfidriveAxisBase.EvaluateMotion - the order is the priority.
+_bTraversingTaskAccepted	:= FALSE;
+_bMdiActive					:= FALSE;
+bStartHoming				:= stControl.stSTW1.b11_StartHoming;
+bStartHomingRising			:= bStartHoming AND NOT _bOldStartHoming;
+_bOldStartHoming			:= bStartHoming;
+bOperation					:= NOT _bFault AND _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation;
+
+// Consume requests while braking; do not queue a restart behind the stop.
+IF _bControlledStopping THEN
+	IF _bReferenceAfterStopping AND (NOT bStartHoming OR NOT bOperation
+		OR NOT stControl.stSTW1.b10_ControlByPlc OR NOT stControl.stSTW1.b4_DoNotRejectTask
+		OR NOT stControl.stSTW1.b5_NoIntermediateStop) THEN
+		_bReferenceAfterStopping := FALSE;
+	END_IF
+	RETURN;
+END_IF
+IF pControl = 0 OR NOT bOperation OR NOT stControl.stSTW1.b10_ControlByPlc THEN
+	StopDrive();
+	RETURN;
+END_IF
+
+// Mode 5 establishes a coordinate at standstill; it needs no velocity or override.
+IF _bSetRefRising THEN
+	IF ABS(_fVelocity) < 0.01 AND NOT _bHomingActive THEN
+		SetCurrentPositionAsReference();
+	ELSE
+		FailHoming('Set reference point requires standstill.');
+	END_IF
+	RETURN;
+END_IF
+
+// Jogging does not use the MDI reject / intermediate-stop conditions.
+bJogRequested := stControl.stSTW1.b8_Jog1 OR stControl.stSTW1.b9_Jog2;
+IF (NOT stControl.stSTW1.b4_DoNotRejectTask OR NOT stControl.stSTW1.b5_NoIntermediateStop)
+	AND (NOT bJogRequested OR bStartHoming OR _bHomingActive) THEN
+	StopDrive();
+	RETURN;
+END_IF
+
+IF bStartHoming THEN
+	IF bStartHomingRising THEN
+		BeginHoming();
+	END_IF
+	IF _bHomingActive THEN
+		RunHoming();
+	END_IF
+	// A held command must not continuously reset the position after completion.
+	RETURN;
+END_IF
+IF _bHomingActive THEN
+	StopDrive();	// dropping STW1.11 cancels homing
+	RETURN;
+END_IF
+
+IF stControl.stSTW1.b8_Jog1 AND stControl.stSTW1.b9_Jog2 THEN
+	StopDrive();
+	RETURN;
+END_IF
+IF stControl.stSTW1.b8_Jog1 THEN
+	JogPositive(stConfig.fJogSpeed * _fOverride);
+	RETURN;
+END_IF
+IF stControl.stSTW1.b9_Jog2 THEN
+	JogNegative(stConfig.fJogSpeed * _fOverride);
+	RETURN;
+END_IF
+
+IF NOT stControl.stPosSTW1.b15_MdiSelection THEN
+	StopDrive();	// traversing block mode is not modelled
+	RETURN;
+END_IF
+
+_bMdiActive := TRUE;
+
+// Continuous MDI and setup operation also require a fresh start after STO.
+IF _bStoRequiresNewMdiStart THEN
+	IF NOT _bActivateRising THEN
+		StopDrive();
+		RETURN;
+	END_IF
+	_bStoRequiresNewMdiStart := FALSE;
+END_IF
+
+IF stControl.stPosSTW1.b14_Setup THEN
+	fSpeed := _fTargetVelocity * _fOverride;
+	IF stControl.stPosSTW1.b9_DirectionPositive AND NOT stControl.stPosSTW1.b10_DirectionNegative THEN
+		JogPositive(fSpeed);
+	ELSIF stControl.stPosSTW1.b10_DirectionNegative AND NOT stControl.stPosSTW1.b9_DirectionPositive THEN
+		JogNegative(fSpeed);
+	ELSE
+		StopDrive();
+	END_IF
+	RETURN;
+END_IF
+
+// Releasing jog must clear the drive's latched jog inputs, even in MDI mode.
+IF _bWasJogging THEN
+	StopDrive();
+	IF _bControlledStopping THEN
+		RETURN;
+	END_IF
+END_IF
+
+IF _bActivateRising THEN
+	_bHasRelativeOrigin := FALSE;
+END_IF
+IF _bActivateRising OR stControl.stPosSTW1.b12_ContinuousTransfer THEN
+	ExecuteMdiPositioning();
+END_IF
+
+IF _bPositioningActive THEN
+	IF NOT IsMoveAllowed(_fDriveTargetPosition) THEN
+		StopDrive();
+	ELSE
+		_fDriveTargetSpeed := _fTargetVelocity * _fOverride;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExecuteMdiPositioning" Id="{3bbe4cca-20c1-46b0-bf91-9c29354ed756}">
+      <Declaration><![CDATA[METHOD PRIVATE ExecuteMdiPositioning : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	fTarget		: LREAL;
+	fDistance	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF stControl.stPosSTW1.b8_Absolute THEN
+	fTarget := _fTargetPosition;
+	_bHasRelativeOrigin := FALSE;
+ELSE
+	fDistance := DINT_TO_LREAL(stControl.nMdiTargetPosition) * stConfig.fPositionScale;
+	IF NOT _bHasRelativeOrigin THEN
+		_fRelativeOrigin := _fPosition;
+		_bHasRelativeOrigin := TRUE;
+	END_IF
+	IF stControl.stPosSTW1.b9_DirectionPositive AND NOT stControl.stPosSTW1.b10_DirectionNegative THEN
+		fTarget := _fRelativeOrigin + ABS(fDistance);
+	ELSIF stControl.stPosSTW1.b10_DirectionNegative AND NOT stControl.stPosSTW1.b9_DirectionPositive THEN
+		fTarget := _fRelativeOrigin - ABS(fDistance);
+	ELSIF NOT stControl.stPosSTW1.b9_DirectionPositive AND NOT stControl.stPosSTW1.b10_DirectionNegative THEN
+		fTarget := _fRelativeOrigin + fDistance;
+	ELSE
+		StopDrive();
+		RETURN;
+	END_IF
+END_IF
+
+IF NOT IsMoveAllowed(fTarget) THEN
+	StopDrive();
+	RETURN;
+END_IF
+
+_fDriveTargetSpeed	:= _fTargetVelocity * _fOverride;
+_bJogForward		:= FALSE;
+_bJogBackward		:= FALSE;
+// Continuous transfer must not restart an unchanged target every cycle.
+IF NOT _bPositioningActive OR _bActivateRising OR fTarget <> _fDriveTargetPosition THEN
+	_fDriveTargetPosition	:= fTarget;
+	_bAtTarget				:= FALSE;
+END_IF
+_bPositioningActive			:= TRUE;
+_bTraversingTaskAccepted	:= TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FailHoming" Id="{fb7fd7fd-390c-48a7-a272-b8266e3f029e}">
+      <Declaration><![CDATA[METHOD PRIVATE FailHoming : BOOL
+VAR_INPUT
+	sReason	: STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StopImmediately();
+_bReferencePointSet	:= FALSE;
+_sHomingError		:= sReason;
+_bFault				:= TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetControlData" Id="{61516a66-a9b3-4613-8a15-95bc12c445b0}">
+      <Declaration><![CDATA[METHOD INTERNAL GetControlData : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pControl = 0 OR stConfig.bForceMode THEN RETURN; END_IF
+
+// Field by field: each word and each DINT is swapped on its own.
+F_Memcpy(ADR(stControl.stSTW1),				pControl + 0,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.stPosSTW1),			pControl + 2,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.stPosSTW2),			pControl + 4,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nSTW2),				pControl + 6,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nOverride),			pControl + 8,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nMdiTargetPosition),	pControl + 10,	4, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nMdiVelocity),		pControl + 14,	4, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nMdiAcc),			pControl + 18,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nMdiDec),			pControl + 20,	2, stConfig.bSwapProcessData);
+F_Memcpy(ADR(stControl.nPzd12),				pControl + 22,	2, stConfig.bSwapProcessData);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="InitRun" Id="{7bf3625c-bf27-4252-8a85-2725afa8b9ef}">
+      <Declaration><![CDATA[METHOD PRIVATE InitRun : BOOL
+VAR_INST
+	bInitRun : BOOL := TRUE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInitRun THEN RETURN; END_IF
+bInitRun := FALSE;
+
+IF pControl = 0 OR pStatus = 0 THEN
+	ADSLOGSTR(ADSLOG_MSGTYPE_WARN, CONCAT(_sPath, ': %s'), 'Plc address not set.');
+END_IF
+
+// STO active at start-up needs the same restart as STO during operation.
+_bStoActive					:= NOT bSTO;
+_bStoRestartRequired		:= _bStoActive;
+_bStoRequiresNewMdiStart	:= _bStoActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="IsMoveAllowed" Id="{359ad981-dad2-4b76-aa73-720174af79fa}">
+      <Declaration><![CDATA[METHOD PRIVATE IsMoveAllowed : BOOL
+VAR_INPUT
+	fTarget	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// FestoAxis: an active limit switch rejects a target beyond it. It does not brake
+// a move already under way - only bUseLimits clamps the travel.
+IsMoveAllowed := TRUE;
+IF NOT _bLimitMonitoring THEN
+	RETURN;
+END_IF
+IF _bNegLimitActive AND fTarget < _fPosition THEN
+	IsMoveAllowed := FALSE;
+END_IF
+IF _bPosLimitActive AND fTarget > _fPosition THEN
+	IsMoveAllowed := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="JogNegative" Id="{fda4e5ef-a2eb-4ed5-a1b0-80ca21d6bf9c}">
+      <Declaration><![CDATA[METHOD PRIVATE JogNegative : BOOL
+VAR_INPUT
+	fSpeed	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _bLimitMonitoring AND _bNegLimitActive THEN
+	StopDrive();
+	RETURN;
+END_IF
+_fDriveTargetSpeed	:= fSpeed;
+_bPositioningActive	:= FALSE;
+_bHasRelativeOrigin	:= FALSE;
+_bWasJogging		:= TRUE;
+_bJogForward		:= FALSE;
+_bJogBackward		:= TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="JogPositive" Id="{bca42e9c-bb27-47e0-9676-6e2134926e95}">
+      <Declaration><![CDATA[METHOD PRIVATE JogPositive : BOOL
+VAR_INPUT
+	fSpeed	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _bLimitMonitoring AND _bPosLimitActive THEN
+	StopDrive();
+	RETURN;
+END_IF
+_fDriveTargetSpeed	:= fSpeed;
+_bPositioningActive	:= FALSE;
+_bHasRelativeOrigin	:= FALSE;
+_bWasJogging		:= TRUE;
+_bJogForward		:= TRUE;
+_bJogBackward		:= FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RunHoming" Id="{9c626802-2f1b-49ae-bf73-aaa1302545ac}">
+      <Declaration><![CDATA[METHOD PRIVATE RunHoming : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bSelected	: BOOL;
+	bOpposite	: BOOL;
+	nDirection	: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_fHomingElapsed := _fHomingElapsed + _fDeltaTime;
+IF NOT _bLimitMonitoring OR _fHomingElapsed > stConfig.fHomingTimeout THEN
+	FailHoming('Homing limit configuration lost or search timeout exceeded.');
+	RETURN;
+END_IF
+IF _nHomingDirection < 0 THEN
+	bSelected := _bNegLimitActive;
+	bOpposite := _bPosLimitActive;
+ELSE
+	bSelected := _bPosLimitActive;
+	bOpposite := _bNegLimitActive;
+END_IF
+IF bOpposite THEN
+	FailHoming('Opposite hardware limit reached during homing.');
+	RETURN;
+END_IF
+IF NOT _bHomingReturning AND bSelected THEN
+	// The motion profile decelerates to zero before reversing.
+	_bHomingReturning := TRUE;
+END_IF
+IF _bHomingReturning AND NOT bSelected THEN
+	SetCurrentPositionAsReference();
+	RETURN;
+END_IF
+IF _bHomingReturning THEN
+	nDirection := -_nHomingDirection;
+	_fDriveTargetSpeed := stConfig.fHomingCrawlSpeed * _fOverride;
+ELSE
+	nDirection := _nHomingDirection;
+	_fDriveTargetSpeed := stConfig.fHomingSearchSpeed * _fOverride;
+END_IF
+IF _fOverride <= 0.0 THEN
+	// Keep homing pending; the requested zero speed brakes with the base ramp.
+	_fDriveTargetSpeed	:= 0;
+	_bJogForward		:= FALSE;
+	_bJogBackward		:= FALSE;
+	RETURN;
+END_IF
+_bJogForward	:= nDirection > 0;
+_bJogBackward	:= nDirection < 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Safety" Id="{4095fb3f-5663-4b0b-9b9c-7f6c6da5fa9d}">
+      <Declaration><![CDATA[METHOD PRIVATE Safety : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// STO: TRUE when torque is inhibited this cycle. The telegram has already been
+// decoded, so its edges are consumed now and never replayed on release.
+_bStoActive := NOT bSTO;
+IF NOT _bStoActive THEN
+	RETURN;
+END_IF
+
+_bOldStartHoming			:= stControl.stSTW1.b11_StartHoming;
+_bStoRestartRequired		:= TRUE;
+_bStoRequiresNewMdiStart	:= TRUE;
+StopImmediately();
+_bTraversingTaskAccepted	:= FALSE;
+_bMdiActive					:= FALSE;
+IF _bFault OR bSimulateFault THEN
+	_bFault := TRUE;
+ELSE
+	_fbGSM.eState := E_ProfidriveGSM_State.S1_SwitchingOnInhibited;
+END_IF
+Safety := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetCurrentPositionAsReference" Id="{505d2641-1821-41ed-8610-9d559bfaafcb}">
+      <Declaration><![CDATA[METHOD PRIVATE SetCurrentPositionAsReference : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StopDrive();
+// Change only the fieldbus coordinate system. Never move the physical axis.
+_fHomingOffset				:= _fPosition - stConfig.fPositionOffset;
+// Keep the switch-edge coordinate, but do not claim completion before standstill.
+_bReferenceAfterStopping	:= _bControlledStopping;
+_bReferencePointSet			:= NOT _bControlledStopping;
+_sHomingError				:= '';
+DecodeValues();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetStatusData" Id="{11b903bd-f643-4d33-8974-8b5afa389c04}">
+      <Declaration><![CDATA[METHOD INTERNAL SetStatusData : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pStatus = 0 THEN RETURN; END_IF
+
+F_Memcpy(pStatus + 0,	ADR(stStatus.stZSW1),		2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 2,	ADR(stStatus.stPosZSW1),	2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 4,	ADR(stStatus.stPosZSW2),	2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 6,	ADR(stStatus.nZSW2),		2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 8,	ADR(stStatus.nMELDW),		2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 10,	ADR(stStatus.nXistA),		4, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 14,	ADR(stStatus.nNistB),		4, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 18,	ADR(stStatus.nFaultCode),	2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 20,	ADR(stStatus.nWarnCode),	2, stConfig.bSwapProcessData);
+F_Memcpy(pStatus + 22,	ADR(stStatus.nPzd12),		2, stConfig.bSwapProcessData);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Sgn" Id="{5ba677a5-d680-4c6a-88fb-74424e6245e7}">
+      <Declaration><![CDATA[// Math.Sign: -1, 0 or 1.
+METHOD PRIVATE Sgn : LREAL
+VAR_INPUT
+	fValue	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF fValue > 0.0 THEN
+	Sgn := 1.0;
+ELSIF fValue < 0.0 THEN
+	Sgn := -1.0;
+ELSE
+	Sgn := 0.0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StateMachine" Id="{17e0ce1c-b103-474c-9116-a070a559c3f0}">
+      <Declaration><![CDATA[METHOD PRIVATE StateMachine : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// ProfidriveAxisBase.UpdateStateMachine, with FB_ProfidriveGSM as the switch on
+// S1..S4. OFF1 / OFF3 out of operation pass through the GSM's S51 / S52 until the
+// axis stands still - the stop itself is EvaluateMotion's StopDrive.
+IF _bDynamicsError THEN
+	StopImmediately();
+	_fbGSM.eState := E_ProfidriveGSM_State.S1_SwitchingOnInhibited;
+	RETURN;
+END_IF
+IF pControl = 0 THEN
+	// No telegram.
+	StopDrive();
+	_fbGSM.eState := E_ProfidriveGSM_State.S1_SwitchingOnInhibited;
+	RETURN;
+END_IF
+
+IF bSimulateFault THEN
+	_bFault := TRUE;
+END_IF
+IF _bFault THEN
+	StopImmediately();
+	IF NOT bSimulateFault AND _bAckRising THEN
+		_bFault := FALSE;
+		_fbGSM.eState := E_ProfidriveGSM_State.S1_SwitchingOnInhibited;
+	END_IF
+	RETURN;
+END_IF
+
+IF _bStoRestartRequired THEN
+	StopDrive();
+	_fbGSM.eState := E_ProfidriveGSM_State.S1_SwitchingOnInhibited;
+	// Release alone cannot resume a latched or level-controlled motion request.
+	IF NOT stControl.stSTW1.b0_On AND NOT stControl.stSTW1.b8_Jog1
+		AND NOT stControl.stSTW1.b9_Jog2 AND NOT stControl.stSTW1.b11_StartHoming THEN
+		_bStoRestartRequired := FALSE;
+		_fbGSM.eState := E_ProfidriveGSM_State.S2_ReadyForSwitchingOn;
+	END_IF
+	RETURN;
+END_IF
+
+IF NOT stControl.stSTW1.b1_NoCoastStop OR NOT stControl.stSTW1.b2_NoQuickStop THEN
+	IF NOT stControl.stSTW1.b1_NoCoastStop THEN
+		StopImmediately();
+	ELSE
+		StopDrive();
+	END_IF
+	CallStateMachine();
+	RETURN;
+END_IF
+
+IF NOT bCtrlEnable THEN
+	StopDrive();
+	_fbGSM.eState := E_ProfidriveGSM_State.S3_SwitchedOn;
+	RETURN;
+END_IF
+
+CallStateMachine();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StopDrive" Id="{b653d416-7f14-4016-9956-c7d89fa47982}">
+      <Declaration><![CDATA[METHOD PRIVATE StopDrive : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Controlled stop with the base deceleration; ApplyMotionProfile ends it at rest.
+_bHomingActive			:= FALSE;
+_bPositioningActive		:= FALSE;
+_bHasRelativeOrigin		:= FALSE;
+_bWasJogging			:= FALSE;
+_bJogForward			:= FALSE;
+_bJogBackward			:= FALSE;
+_bAtTarget				:= FALSE;
+_bControlledStopping	:= ABS(_fVelocity) > 0.00001;
+IF NOT _bControlledStopping THEN
+	_fVelocity := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StopImmediately" Id="{3f18a465-141a-4a47-9e09-d26dd88adcad}">
+      <Declaration><![CDATA[METHOD PRIVATE StopImmediately : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StopDrive();
+_bControlledStopping		:= FALSE;
+_bReferenceAfterStopping	:= FALSE;
+_fVelocity					:= 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TrapStep" Id="{f9455145-0de6-4b6b-814e-4bed7ff24786}">
+      <Declaration><![CDATA[// ProfidriveMotionProfile.Step - trapezoidal velocity model with separate
+// acceleration and deceleration, integrated exactly in 1 ms sub-steps.
+// No jerk, inertia or following error. TRUE when the target was reached.
+METHOD PRIVATE TrapStep : BOOL
+VAR_IN_OUT
+	fPosition			: LREAL;
+	fVelocity			: LREAL;
+END_VAR
+VAR_INPUT
+	bHasTarget			: BOOL;
+	fTarget				: LREAL;
+	fRequestedVelocity	: LREAL;
+	fAcceleration		: LREAL;
+	fDeceleration		: LREAL;
+	fDeltaTime			: LREAL;
+END_VAR
+VAR
+	nSteps		: DINT;
+	i			: DINT;
+	fDt			: LREAL;
+	fP			: LREAL;
+	fV			: LREAL;
+	fDesired	: LREAL;
+	fDistance	: LREAL;
+	fLimit		: LREAL;
+	fRate		: LREAL;
+	fDifference	: LREAL;
+	fRampTime	: LREAL;
+	fNext		: LREAL;
+	fNextPos	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF fDeltaTime <= 0.0 THEN
+	RETURN;
+END_IF
+fP := fPosition;
+fV := fVelocity;
+nSteps := TRUNC(fDeltaTime / 0.001);
+IF DINT_TO_LREAL(nSteps) * 0.001 < fDeltaTime - 1E-12 THEN
+	nSteps := nSteps + 1;		// ceil
+END_IF
+nSteps := MAX(1, nSteps);
+fDt := fDeltaTime / DINT_TO_LREAL(nSteps);
+
+FOR i := 1 TO nSteps DO
+	fDesired := fRequestedVelocity;
+	IF bHasTarget THEN
+		fDistance := fTarget - fP;
+		IF ABS(fDistance) <= 0.00001 AND ABS(fV) <= fDeceleration * fDt THEN
+			fP := fTarget; fV := 0; TrapStep := TRUE;
+			EXIT;
+		END_IF
+		// Reserve half a discrete braking step so the requested speed stays stoppable.
+		fLimit := MAX(0.0, SQRT(2.0 * fDeceleration * ABS(fDistance)) - fDeceleration * fDt * 0.5);
+		fDesired := Sgn(fDistance) * MIN(ABS(fRequestedVelocity), fLimit);
+	END_IF
+	// Reverse only after decelerating to zero.
+	IF fV * fDesired < 0.0 THEN
+		fDesired := 0;
+	END_IF
+	IF ABS(fDesired) > ABS(fV) THEN
+		fRate := fAcceleration;
+	ELSE
+		fRate := fDeceleration;
+	END_IF
+	fDifference := fDesired - fV;
+	IF fRate > 0.0 THEN
+		fRampTime	:= MIN(fDt, ABS(fDifference) / fRate);
+		fNext		:= fV + Sgn(fDifference) * fRate * fRampTime;
+	ELSE
+		fRampTime	:= 0;
+		fNext		:= fV;
+	END_IF
+	fNextPos := fP + (fV + fNext) * 0.5 * fRampTime + fNext * (fDt - fRampTime);
+	IF bHasTarget AND (fTarget - fP) * (fTarget - fNextPos) <= 0.0
+		AND ABS(fNext) <= fDeceleration * fDt + 0.00001 THEN
+		fP := fTarget; fV := 0; TrapStep := TRUE;
+		EXIT;
+	END_IF
+	fP := fNextPos;
+	fV := fNext;
+END_FOR
+
+fPosition := fP;
+fVelocity := fV;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="UpdateDiagnosis" Id="{2f16fd63-0dd6-4f60-bf05-10c0405201b1}">
+      <Declaration><![CDATA[METHOD PRIVATE UpdateDiagnosis : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_bOperationEnabled	:= NOT _bFault AND _fbGSM.eState = E_ProfidriveGSM_State.S4_Operation;
+_bStandstill		:= ABS(_fVelocity) < 0.01;
+_bAccelerating		:= ABS(_fVelocity) > ABS(_fOldVelocity) + 0.001;
+_bDecelerating		:= ABS(_fVelocity) < ABS(_fOldVelocity) - 0.001;
+_bMovingForward		:= _fVelocity > 0.01;
+_bMovingBackward	:= _fVelocity < -0.01;
+_bCommandActive		:= _bHomingActive OR (_bPositioningActive AND NOT _bAtTarget) OR NOT _bStandstill;
+_bTargetReached		:= _bOperationEnabled AND _bPositioningActive AND NOT _bHomingActive AND _bAtTarget;
+_fOldVelocity		:= _fVelocity;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="UpdateDynamics" Id="{bd47f58d-8455-4064-89ac-406c0aaeeba9}">
+      <Declaration><![CDATA[METHOD PRIVATE UpdateDynamics : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_fAccOverride	:= LIMIT(0.0, INT_TO_LREAL(stControl.nMdiAcc) / 16384.0, 1.0);
+_fDecOverride	:= LIMIT(0.0, INT_TO_LREAL(stControl.nMdiDec) / 16384.0, 1.0);
+_bDynamicsError	:= NOT (stConfig.fAcceleration > 0.0) OR NOT (stConfig.fDeceleration > 0.0);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

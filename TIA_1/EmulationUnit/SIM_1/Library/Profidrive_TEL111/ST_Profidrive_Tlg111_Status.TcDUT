@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_Profidrive_Tlg111_Status" Id="{276486ea-c4c6-4101-b9c1-36eeec223731}">
+    <Declaration><![CDATA[// Telegram 111, drive -> PLC. 12 words = 24 bytes on the wire, big-endian.
+{attribute 'pack_mode' := '1'}
+TYPE ST_Profidrive_Tlg111_Status :
+STRUCT
+	stZSW1				: ST_Profidrive_Tlg111_ZSW1;		// PZD1
+	stPosZSW1			: ST_Profidrive_Tlg111_POS_ZSW1;	// PZD2
+	stPosZSW2			: ST_Profidrive_Tlg111_POS_ZSW2;	// PZD3
+	nZSW2				: WORD;							// PZD4, not written
+	nMELDW				: WORD;							// PZD5, not written
+	nXistA				: DINT;							// PZD6+7, XIST_A actual position [LU]
+	nNistB				: DINT;							// PZD8+9, NIST_B actual velocity, 16#40000000 = 100 %
+	nFaultCode			: WORD;							// PZD10, not written
+	nWarnCode			: WORD;							// PZD11, not written
+	nPzd12				: WORD;							// PZD12, not written
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
