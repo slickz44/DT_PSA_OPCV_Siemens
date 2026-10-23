@@ -63,7 +63,7 @@ This screenshot documents the **TwinCAT simulation configuration**, not the modu
 
 For both simulated lifts, the shown configuration selects `NegativeLimitSwitch`, enables a physical travel clamp from −20 to 380 mm, and enables `bSwapProcessData` for the Siemens process image. Keep the PLC's scaling and the emulation configuration consistent.
 
-**Review item in the captured configuration:** the reference-speed assignment in the Lift02 section still targets `Lift01_Y_Lift`. Lift01 is therefore assigned `2624.807` twice, while this initialization does not set Lift02's reference speed. Its structure default is `1000.0` unless changed elsewhere. Verify the intended reference speed for each axis against the PLC parameters before treating this screenshot as a copy-ready configuration. This documentation update does not modify the simulation code.
+**Screenshot note:** The captured Lift02 section still shows a reference-speed assignment to `Lift01_Y_Lift`. This has been corrected in the supplied code: `FG_Transport.InitRun` explicitly sets `stConfig.fReferenceSpeed := 2624.807` for both Lift01 and Lift02. Use the supplied source rather than copying this line from the screenshot, and keep the reference speed consistent with the PLC parameters.
 
 The limit sensors are wired twice:
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 (2026-10-23)
+
+### Features
+
+- Add PROFIdrive telegram 111 positioning for both lift axes, with drive behaviour simulated in the TwinCAT EmulationUnit.
+- Update the TIA Portal V19 project archive with PROFIdrive integration.
+- Connect the lift telegrams to the PLC process image at bytes 1020-1043 (Lift01) and 1044-1067 (Lift02), with 24 bytes in each direction.
+
+### Fixes and documentation
+
+- Correct the reference-speed assignment for Lift02 in the emulation configuration.
+- Update the actuator drive type in the TIA project.
+- Document the telegram addresses and TwinCAT drive configuration, including an updated screenshot.
+
+See [_docs/lift-drives.md](_docs/lift-drives.md) for configuration details and simulation limitations.
+
 # 1.0.0 (2026-10-02)
 
 
