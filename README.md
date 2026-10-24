@@ -114,13 +114,16 @@ The main project's [compatibility information](https://github.com/Preliy/DT_PSA_
 
 ## Roadmap
 
-Planned improvements and ideas for future development:
+### Completed in v1.1.0
+
+- **Lift drives — PROFIdrive telegram 111:** Implemented control of both lift axes in the TIA Portal project, with drive simulation in the TwinCAT EmulationUnit and configured PLC process-data mapping. See the [lift drive documentation](_docs/lift-drives.md) and [v1.1.0 release](https://github.com/slickz44/DT_PSA_OPCV_Siemens/releases/tag/v1.1.0).
+
+### Planned improvements
 
 - **Safety concept:** Extend the machine control and simulation with safety doors and multiple safety circuits.
 - **Production counters:** Add daily and shift counters for OK/NOK parts, tracked by product number.
 - **Parallel sequences:** Introduce parallel sequence execution to reduce cycle time.
 - **Bottleneck analysis:** Identify stations and process steps that limit throughput.
-- **Lift drives:** The emulation unit simulates both lifts as PROFIdrive telegram 111 drives - see [Lift drives](_docs/lift-drives.md). Open: the telegram addresses in the TIA hardware configuration.
 - **Diagnostics:** Extend fault reporting to identify the affected actuators and step sequences.
 
 These topics are open for discussion. Priorities and implementation details may evolve.
