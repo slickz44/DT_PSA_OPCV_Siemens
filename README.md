@@ -8,6 +8,8 @@ One machine. Reusable control modules. Virtual commissioning with TIA Portal.
 
 [Watch the Siemens walkthrough on YouTube](https://youtu.be/DnUcnGoN3U8): virtual commissioning with TIA Portal, modularization and standardization.
 
+**[Watch the full video series on YouTube](https://www.youtube.com/playlist?list=PLVBhZKCKmh0o)** — follow the project walkthroughs and further developments in the playlist.
+
 ## What is it?
 
 The Siemens implementation of [DT_PSA_OPCV](https://github.com/Preliy/DT_PSA_OPCV) — the Digital Twin for Laser Welding & Assembly System (PSA OPCV).
