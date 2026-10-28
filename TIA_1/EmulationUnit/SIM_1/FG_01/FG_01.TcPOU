@@ -14,6 +14,7 @@ VAR_INPUT
 	Y_LaserMark : FB_DeviceByte;
 	Y_Platform : FB_Cylinder;
 	Y_ReaderWindow : FB_Cylinder;
+	Y_RFID : FB_RFID_IQT1;
 END_VAR
 {endregion}]]></Declaration>
     <Implementation>
@@ -28,6 +29,7 @@ END_VAR
 	Y_LaserMark();
 	Y_Platform();
 	Y_ReaderWindow();
+	Y_RFID();
 {endregion}
 
 Mapping();

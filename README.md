@@ -121,6 +121,7 @@ Planned improvements and ideas for future development:
 - **Parallel sequences:** Introduce parallel sequence execution to reduce cycle time.
 - **Bottleneck analysis:** Identify stations and process steps that limit throughput.
 - **Lift drives:** The emulation unit simulates both lifts as PROFIdrive telegram 111 drives - see [Lift drives](_docs/lift-drives.md). Open: the telegram addresses in the TIA hardware configuration.
+- **RFID read/write head:** The emulation unit has a behaviour model of a P+F IQT1 RFID head in Expert Mode. It reads and writes the Open Commissioning product data file of the payload in front of it - see [RFID read/write head](_docs/rfid-iqt1.md). Open: a station that uses it, its telegram addresses, and its Tag Reader in the twin.
 - **Diagnostics:** Extend fault reporting to identify the affected actuators and step sequences.
 
 These topics are open for discussion. Priorities and implementation details may evolve.

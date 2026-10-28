@@ -1,0 +1,1572 @@
+﻿FUNCTION_BLOCK "IQT1-xx-IO-V1_ExpertMode_Basic"
+{ S7_Optimized_Access := 'TRUE' }
+AUTHOR : KReinhardt
+FAMILY : 'IQT1-xx-IO-V1'
+VERSION : 2.1
+   VAR_INPUT 
+      I_HWIO_Hardware_ID : HW_IO;
+      I_T_Timeout : Time := T#10s;
+      I_b_StartRead : Bool;
+      I_b_StartWrite : Bool;
+      I_b_StartSpecialCommand : Bool;
+      I_b_UserMemory_UID : Bool;
+      I_b_SingleEnhanced : Bool;
+      I_b_Quit : Bool;
+      I_w_ByteAddress : Word;
+      I_i_ByteNumber : Int;
+      I_B_TagType : Byte := 16#14;
+   END_VAR
+
+   VAR_OUTPUT 
+      O_b_Done : Bool;
+      O_b_NoDataCarrier : Bool;
+      O_b_Busy : Bool;
+      O_b_Finish : Bool;
+      O_b_Error : Bool;
+      O_B_Status : Byte;
+      O_w_AccessCounter : Int;
+      O_B_PQI : Byte;
+   END_VAR
+
+   VAR_IN_OUT 
+      IO_b_SetRestart : Bool;
+      IO_b_InitFinish : Bool;
+      UserData : "IQT1-xx-IO-V1_ExpertMode_Basic_UDT";
+   END_VAR
+
+   VAR 
+      MASK_UPDATEBIT_SLAVE : Byte := 32;
+      MASK_UPDATEBIT_MASTER : Byte := 64;
+      MASK_DELETEBIT : Byte := 128;
+      RETVAL_SFC14 : Int;
+      RETVAL_SFC15 : Int;
+      HEAD : Struct
+         TimeoutActive : Bool;
+         NewData : Bool;
+         NotExist : Bool;
+         ExistTC : Bool;
+         Error : Bool;
+         TimeoutOccurred : Bool;
+         ReceiveOK : Bool;
+         SendOK : Bool;
+         TagPresent : Bool;
+         Done : Bool;
+         Busy : Bool;
+         EnhCmdActive : Bool;
+         SglCmdActive : Bool;
+         WriteCmdActive : Bool;
+         ReadCmdActive : Bool;
+         TransfToHead : Bool;
+         QuitCmdActive : Bool;
+         SpecialCmdActive : Bool;
+         Execute : Bool;
+      END_STRUCT;
+      RTRIG_SetRestart {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      RTRIG_Quit {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      RTRIG_Read {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      RTRIG_Write {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      RTRIG_SpecialCommand {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      STATE_INIT : USInt;
+      STATE_CMD : USInt;
+      NumberOfTags : DWord;
+      AccessConter_Int : Int;
+      Error_ScanTime : Int;
+      WATCHDOG {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME := ((), T#5s, (), (), (), ());
+      InData : Array[0..33] of Byte;
+      OutData : Array[0..31] of Byte;
+      statEdge1 : Bool;
+      statFlag : Bool;
+      Counter_FP : Int;
+      Resp_Telegram_1 : Array[0..31] of Byte;
+      Resp_Telegram_2 : Array[0..31] of Byte;
+      Resp_Telegram_3 : Array[0..31] of Byte;
+      Resp_Telegram_4 : Array[0..31] of Byte;
+      Resp_Telegram_5 : Array[0..31] of Byte;
+      Resp_Telegram_6 : Array[0..31] of Byte;
+      Resp_Telegram_7 : Array[0..31] of Byte;
+      Resp_Telegram_8 : Array[0..31] of Byte;
+      Resp_Telegram_9 : Array[0..31] of Byte;
+      Resp_Telegram_10 : Array[0..31] of Byte;
+      FragmentCounter_1 : Byte;
+      FragmentCounter_2 : Byte;
+      FragmentCounter_3 : Byte;
+      FragmentCounter_4 : Byte;
+      FragmentCounter_5 : Byte;
+      FragmentCounter_6 : Byte;
+      FragmentCounter_7 : Byte;
+      FragmentCounter_8 : Byte;
+      FragmentCounter_9 : Byte;
+      FragmentCounter_10 : Byte;
+      StartReadDataTransmission : Bool;
+      SingleCommandFinished : Bool;
+      UpdateSlave_IN : Bool;
+      statEdgeA : Bool;
+      statEdgeB : Bool;
+      statFlagC : Bool;
+   END_VAR
+
+
+BEGIN
+	(*
+	#############################################################################################
+	
+	General Header
+	------------------------------------------------------------------------------------------
+	Short description:  Function Block for IQT1-xx-IO-V1 Expert Mode with ICE11 and 33 Byte telegram length and ICE1/ICE3 with 32 Byte telegram length
+	Version:            2.1
+	Name:               Expert Mode IQT1-xx-IO-V1 for ICE11 with 33 Byte telegram length and ICE1/ICE3 with 32 Byte telegram length
+	Date:               2024-03-14
+	Company:            Pepperl+Fuchs SE
+	Author:             Karsten Reinhardt
+	EMail:              kreinhardt@de.pepperl-fuchs.com
+	Phone:              +49 (0) 621 776 1736
+	
+	##############################################################################################
+	PLEASE NOTE:
+	User-Changes made in consultation with the author, Karsten Reinhardt
+	 (2026-03-18 by Juergen Florig , FLORIG Steuerungstechnik)
+	
+	The "InData" array was increased from 32 bytes (0..31) to 34 bytes (0..33). 
+	Reason: The used Murr IO-Link master (part number 54630) apparently transmits the PQI byte as a WORD.
+	This resulted in a range length overrun during the transfer of the process input data
+	(error code -32591 dec / 80B1 hex on SFC14).    
+	##############################################################################################
+	
+	Changes V2.1    2024-03-14
+	- change generating internal response counter with signal change of Update slave bit (Input[0].%X5)
+	- each new telegram Update slave bit will change and the counter increases
+	- can use in combination with IO-Link Masters with a telegram length of 32 and 33 Bytes
+	
+	Changes V2.0    2023-11-30
+	- compleatly new version compared to the former function block for Expert Mode in combination with IQT1-xx-IO-V1 (old Version V1.1 2018-05-23)
+	- old version does not support fragmentation and was limited in the number of readable bytes
+	- new Version (V2.0) based on function block for IQT3-FP-IO-V1 (V1.0) --> see version information below
+	- execute Change Tag command for TagType configuration as initialisation routine instead of the quit command; add input parameter TagType
+	- adopt ReadData array inside UDT to a length of 192 Bytes (maximal length of read in data with one command)
+	- remove unused arrays like UID_WrittenTag and UID_TagLeave which does not used by the IQT1-xx-IO-V1 system
+	- single command ends with status 16#00 or status 16#05 message and not with status 16#0B message like IQT3-FP-IO-V1
+	
+	
+	Changes V1.0    2023-11-08
+	- based on the Version V2.0 of the ExpertMode function block for the IUT-F191-IO-V1 (see comments below)
+	- change check of the length information for the status 16#0B telegram which contains RSSI value (length different compared to IUT-F191)
+	- remove EPC input and EPC specific commands
+	- rename EPC to UID
+	- switch from 2-byte word commands (#SR; #ER; #SW; #EW) to 4-byte block commands (SR; ER; SW; EW)
+	
+	Pre-Version of the IUT-F191-IO-V1
+	Changes V2.0    2023-10-05
+	- version for telegram length of 33 Byte (32 Byte Process data + 1 Byte PQI)
+	- usage in combination with ICE11 IO-Link Master
+	- add PQI Byte as output (Q_B_PQI) in the function block
+	- increase internal array (InData) to a size of 33 Byte
+	- based on the Version V2.0 for the IO-Link Master ICE1 and ICE3
+	- increase number of read in Bytes from User Memory to 192 Bytes
+	- increase ReadData area to a length of 300 Byte
+	- Fragmentation for read commands implemented
+	- write command is limited to a length of up to 22 Byte
+	- implement time measurement for status 16#00 (read io), status 16#0B (RSSI) and status 16#0F (end of single command)
+	- store up to 10 response telegrams inside instance data block
+	- can used for Long Form and Short Form data format
+	
+	Changes V1.0    2023-07-03
+	- Initial version
+	- based on version for Expert Mode from the IUT-F190-B40
+	- no telegram fragmentation supported
+	- include arrays (10pcs) to store up to 10 response telegrams inside instance data block
+	- when the limit is reached the following telegram is stored in the first field (ring buffer)
+	- execute 2-Byte Words commands (Single/Enhanced Read/Write) instead of 4-Byte Blocks commands
+	- clear output data field if quit command is triggered during initialisation
+	*)
+	
+	(*Read in process data; copy into #InData structure*)
+	#RETVAL_SFC14                                       := DPRD_DAT(LADDR := #I_HWIO_Hardware_ID, RECORD => #InData);
+	
+	#O_B_PQI := #InData[32];
+	
+	(* Check every cycle if a new telegram is available *)
+	IF (((#InData[0]) AND #MASK_UPDATEBIT_SLAVE) = ((#OutData[0] AND #MASK_UPDATEBIT_SLAVE))) THEN
+	    #HEAD.ReceiveOK                                 := TRUE;    (* inform PLC, that a new telegram is available *)
+	    
+	ELSE
+	    #HEAD.ReceiveOK                                 := FALSE;   (* inform PLC, that no new telegram is available *)
+	END_IF;
+	
+	(*Copy Update slave bit into internal variable*)
+	#UpdateSlave_IN := #InData[0].%X5;
+	
+	(*Trigger for positive edge on Update slave bit*)
+	#statEdgeA := #UpdateSlave_IN AND NOT #statFlagC;
+	
+	(*Trigger for negative edge on Update slave bit*)
+	#statEdgeB := NOT #UpdateSlave_IN AND #statFlagC;
+	
+	#statFlagC := #UpdateSlave_IN;
+	
+	//generate Testcounter
+	IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	    #Counter_FP := #Counter_FP + 1;     // increment each new response telegram
+	END_IF;
+	
+	//generate a pulse signal which is set for only one cycle     
+	//    #statEdge1                                      := #HEAD.ReceiveOK AND NOT #statFlag;
+	//    #statFlag                                       := #HEAD.ReceiveOK;
+	//generate counter to count numbers of pulse signals which identically to the number of response telegrams    
+	//    IF #statEdge1 = True THEN
+	//        #Counter_FP                                 := #Counter_FP + 1;     // increment each new response telegram
+	//    END_IF;
+	    
+	//first response telegram after send command
+	    IF #Counter_FP = 1 THEN
+	        MOVE_BLK(IN := #InData[0], OUT => #Resp_Telegram_1[0], COUNT := 32);               //Copy InData to internal data structure of telegram 1
+	        #FragmentCounter_1 := #Resp_Telegram_1[2];                  //Fragment counter of first response telegram                    
+	        IF ((#Resp_Telegram_1[6] = 16#00) OR (#Resp_Telegram_1[6] = 16#04)) AND (#Resp_Telegram_1[5] <> 16#02) THEN              //Status
+	            MOVE_BLK(IN := #Resp_Telegram_1[7], COUNT := 26, OUT => #UserData.ReadData[0]);  //copy data from internal structure to ReadData
+	            #StartReadDataTransmission := True;
+	        END_IF;
+	        
+	        IF #FragmentCounter_1 >= 16#00 AND #Resp_Telegram_1[6] = 16#00 THEN
+	            #O_b_NoDataCarrier := False;
+	            #O_b_Error := FALSE;
+	        END_IF;
+	        
+	        IF #FragmentCounter_1 = 16#00 THEN
+	            IF #Resp_Telegram_1[1] = 16#07 AND #Resp_Telegram_1[4] = 16#04 AND #Resp_Telegram_1[6] = 16#05 THEN  // No Tag
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #O_b_Done := False;
+	                #O_b_Error := FALSE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                END_IF;
+	            END_IF;
+	            IF  #Resp_Telegram_1[6] = 16#00 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := FALSE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #O_b_Done := TRUE;
+	                #O_b_Error := FALSE;
+	              //  IF #statEdge1 = True AND #Resp_Telegram_1[5] <> 16#04 AND #Resp_Telegram_1[6] = 16#00  AND NOT #HEAD.QuitCmdActive = True THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_1[5] <> 16#04 AND #Resp_Telegram_1[6] = 16#00  AND NOT #HEAD.QuitCmdActive = True THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True AND (#Resp_Telegram_1[6] = 16#05 OR #Resp_Telegram_1[6] = 16#00) THEN
+	                #O_b_Finish := True;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.SglCmdActive := False;
+	                #HEAD.ReadCmdActive := False;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True AND #Resp_Telegram_1[6] = 16#04 THEN
+	                #O_b_Finish := True;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.SglCmdActive := False;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.TimeoutActive := FALSE;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.Busy := FALSE;
+	                #O_b_Error := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_1[6] = 16#04 THEN
+	                #O_b_Done := True;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Error := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #Counter_FP := 16#00;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 2 THEN
+	        #HEAD.TimeoutActive := FALSE;
+	        MOVE_BLK(IN := #InData[0],OUT => #Resp_Telegram_2[0], COUNT := 32);
+	        #FragmentCounter_2 := #Resp_Telegram_2[2];
+	        IF #FragmentCounter_2 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_2[3], COUNT := 29, OUT => #UserData.ReadData[25]);
+	        END_IF;
+	        IF #FragmentCounter_2 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_2 = 16#00 THEN
+	            IF #Resp_Telegram_2[1] = 16#07 AND #Resp_Telegram_2[4] = 16#04 AND #Resp_Telegram_2[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_2[6];
+	                #O_b_Done := False;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	               // IF #statEdge1 = True AND #Resp_Telegram_2[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_2[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_2[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_2[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 3 THEN
+	        MOVE_BLK(IN := #InData[0], OUT => #Resp_Telegram_3[0], COUNT := 32);
+	        #FragmentCounter_3 := #Resp_Telegram_3[2];
+	        IF #FragmentCounter_3 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_3[3],COUNT := 29, OUT => #UserData.ReadData[54]);
+	        END_IF;
+	        IF #FragmentCounter_3 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_3 = 16#00 THEN
+	            IF #Resp_Telegram_3[1] = 16#07 AND #Resp_Telegram_3[4] = 16#04 AND #Resp_Telegram_3[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_3[6];
+	                #O_b_Done := False;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	               // IF #statEdge1 = True AND #Resp_Telegram_3[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_3[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_3[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_3[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 4 THEN
+	        MOVE_BLK(IN := #InData[0], OUT => #Resp_Telegram_4[0],  COUNT := 32);
+	        #FragmentCounter_4 := #Resp_Telegram_4[2];
+	        IF #FragmentCounter_4 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_4[3], COUNT := 29, OUT => #UserData.ReadData[83]);
+	        END_IF;
+	        IF #FragmentCounter_4 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_4 = 16#00 THEN
+	            IF #Resp_Telegram_4[1] = 16#07 AND #Resp_Telegram_4[4] = 16#04 AND #Resp_Telegram_4[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_4[6];
+	                #O_b_Done := False;
+	               // IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	              //  IF #statEdge1 = True AND #Resp_Telegram_4[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_4[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_4[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_4[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    
+	    IF #Counter_FP = 5 THEN
+	        MOVE_BLK(IN := #InData[0],
+	                 OUT => #Resp_Telegram_5[0],
+	                 COUNT := 32);
+	        #FragmentCounter_5 := #Resp_Telegram_5[2];
+	        IF #FragmentCounter_5 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_5[3],
+	                     COUNT := 29,
+	                     OUT => #UserData.ReadData[112]);
+	        END_IF;
+	        IF #FragmentCounter_5 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_5 = 16#00 THEN
+	            IF #Resp_Telegram_5[1] = 16#07 AND #Resp_Telegram_5[4] = 16#04 AND #Resp_Telegram_5[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_5[6];
+	                #O_b_Done := False;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	               // IF #statEdge1 = True AND #Resp_Telegram_5[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_5[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_5[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_5[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 6 THEN
+	        MOVE_BLK(IN := #InData[0], OUT => #Resp_Telegram_6[0],  COUNT := 32);
+	        #FragmentCounter_6 := #Resp_Telegram_6[2];
+	        IF #FragmentCounter_6 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_6[3],  COUNT := 29,   OUT => #UserData.ReadData[141]);
+	        END_IF;
+	        IF #FragmentCounter_6 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_6 = 16#00 THEN
+	            IF #Resp_Telegram_6[1] = 16#07 AND #Resp_Telegram_6[4] = 16#04 AND #Resp_Telegram_6[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_6[6];
+	                #O_b_Done := False;
+	               // IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	             //   IF #statEdge1 = True AND #Resp_Telegram_6[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_6[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_6[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_6[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 7 THEN
+	        MOVE_BLK(IN := #InData[0],  OUT => #Resp_Telegram_7[0],  COUNT := 32);
+	        #FragmentCounter_7 := #Resp_Telegram_7[2];
+	        IF #FragmentCounter_7 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	            MOVE_BLK(IN := #Resp_Telegram_7[3], COUNT := 29, OUT => #UserData.ReadData[170]);
+	        END_IF;
+	        IF #FragmentCounter_7 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_7 = 16#00 THEN
+	            IF #Resp_Telegram_7[1] = 16#07 AND #Resp_Telegram_7[4] = 16#04 AND #Resp_Telegram_7[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_7[6];
+	                #O_b_Done := False;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	              //  IF #statEdge1 = True AND #Resp_Telegram_7[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_7[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_7[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_7[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 8 THEN
+	        MOVE_BLK(IN := #InData[0],
+	                 OUT => #Resp_Telegram_8[0],
+	                 COUNT := 32);
+	        #FragmentCounter_8 := #Resp_Telegram_8[2];
+	       (* IF #FragmentCounter_8 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	         //   MOVE_BLK(IN := #Resp_Telegram_8[3], COUNT := 29, OUT => #UserData.ReadData[199]);
+	        END_IF;*)
+	        IF #FragmentCounter_8 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_8 = 16#00 THEN
+	            IF #Resp_Telegram_8[1] = 16#07 AND #Resp_Telegram_8[4] = 16#04 AND #Resp_Telegram_8[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_8[6];
+	                #O_b_Done := False;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	             //   IF #statEdge1 = True AND #Resp_Telegram_8[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_8[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_8[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_8[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 9 THEN
+	        MOVE_BLK(IN := #InData[0],   OUT => #Resp_Telegram_9[0], COUNT := 32);
+	        #FragmentCounter_9 := #Resp_Telegram_9[2];
+	      (*  IF #FragmentCounter_9 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	         //   MOVE_BLK(IN := #Resp_Telegram_9[3], COUNT := 29, OUT => #UserData.ReadData[228]);
+	        END_IF;*)
+	        IF #FragmentCounter_9 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_9 = 16#00 THEN
+	            IF #Resp_Telegram_9[1] = 16#07 AND #Resp_Telegram_9[4] = 16#04 AND #Resp_Telegram_9[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_9[6];
+	                #O_b_Done := False;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	             //   IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	              //  IF #statEdge1 = True AND #Resp_Telegram_9[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_9[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_9[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_9[6];
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    
+	    IF #Counter_FP = 10 THEN
+	        MOVE_BLK(IN := #InData[0], OUT => #Resp_Telegram_10[0], COUNT := 32);
+	        #FragmentCounter_10 := #Resp_Telegram_10[2];
+	      (*  IF #FragmentCounter_10 >= 16#00 AND #StartReadDataTransmission = TRUE THEN
+	         //   MOVE_BLK(IN := #Resp_Telegram_10[3],  COUNT := 29, OUT => #UserData.ReadData[257]);
+	        END_IF;*)
+	        IF #FragmentCounter_10 = 16#00 THEN
+	            #StartReadDataTransmission := False;
+	        END_IF;
+	        
+	        IF #FragmentCounter_10 = 16#00 THEN
+	            IF #Resp_Telegram_10[1] = 16#07 AND #Resp_Telegram_10[4] = 16#04 AND #Resp_Telegram_10[6] = 16#05 THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_NoDataCarrier := True;
+	                #Counter_FP := 16#00;
+	                #O_B_Status := #Resp_Telegram_10[6];
+	                #O_b_Done := False;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_05);
+	                    #UserData.Time_Status_05 := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Start_Command);
+	                    #UserData.Time_Tag_in_Zone := T_DIFF(IN1 := #UserData.Date_Status_05, IN2 := #UserData.Date_Status_00);
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.SglCmdActive = True THEN
+	                #HEAD.Done := TRUE;
+	                #HEAD.Busy := False;
+	                #O_b_Done := True;
+	                #O_b_Busy := False;
+	                #HEAD.NewData := False;
+	                #O_b_Finish := True;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	                #HEAD.SglCmdActive := FALSE;
+	                #HEAD.WriteCmdActive := FALSE;
+	                #HEAD.ReadCmdActive := False;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #SingleCommandFinished := TRUE;
+	              //  IF #statEdge1 = True THEN
+	                IF (#statEdgeA = TRUE) OR (#statEdgeB = TRUE) THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True THEN
+	                #HEAD.Done := False;
+	                #HEAD.NewData := True;
+	                #HEAD.Execute := FALSE;
+	                #HEAD.TimeoutActive := FALSE;
+	                #O_b_Done := TRUE;
+	                #O_B_Status := #Resp_Telegram_1[6];
+	             //   IF #statEdge1 = True AND #Resp_Telegram_10[6] <> 16#05 THEN
+	                IF ((#statEdgeA = TRUE) OR (#statEdgeB = TRUE)) AND #Resp_Telegram_10[6] <> 16#05 THEN
+	                    #AccessConter_Int := #AccessConter_Int + 1;                                                             //increment internal counter
+	                    #O_w_AccessCounter := #AccessConter_Int;
+	                    #Error_ScanTime := RD_LOC_T(#UserData.Date_Status_00);                                               //read out local data
+	                    #UserData.Time_Status_00 := T_DIFF(IN1 := #UserData.Date_Status_00, IN2 := #UserData.Date_Start_Command);   //calculate reading time
+	                END_IF;
+	            END_IF;
+	            IF #HEAD.EnhCmdActive = True AND #Resp_Telegram_10[6] = 16#05 THEN
+	                #O_b_Done := FALSE;
+	                #O_B_Status := #Resp_Telegram_10[6];
+	            END_IF;
+	        END_IF;
+	        #Counter_FP := 0;
+	    END_IF;
+	 
+	 
+	(* PLC always copy the inverted Update Slave bit from INPUT to OUTPUT *)
+	(* IQT1-xx-IO-V1 is now allowed to send a new telegram *)
+	#OutData[0]                                         := ((#OutData[0] AND (NOT #MASK_UPDATEBIT_SLAVE)) OR ((NOT #InData[0]) AND #MASK_UPDATEBIT_SLAVE));
+	
+	(* Define Trigger inputs as rising edges *)        
+	#RTRIG_SetRestart(CLK                               :=  #IO_b_SetRestart);      (*SetRestart Input*)
+	#RTRIG_Quit(CLK                                     :=  #I_b_Quit);             (*Quit Input*)
+	#RTRIG_Read(CLK                                     :=  #I_b_StartRead);        (*Read Input*)
+	#RTRIG_Write(CLK                                    :=  #I_b_StartWrite);       (*Write Input*)
+	#RTRIG_SpecialCommand(CLK                           :=  #I_b_StartSpecialCommand);   (*SpecialCommand Input*)
+	
+	(* Handling of the SetRestart Routine
+	- routine consist of the flip of the Delete Bit and the execution of the Change Tag command
+	*) 
+	IF #RTRIG_SetRestart.Q THEN                                                     (*Check positive edge on SetRestart input*)
+	    #STATE_INIT                                     := 1;
+	    #STATE_CMD                                      := 0;
+	    #Counter_FP                                     := 0;
+	END_IF;
+	
+	CASE #STATE_INIT OF
+	        
+	    0:  (* ********************** Idle state ******************* *)
+	        ;
+	    1:  (* ********************** Initialize variables  ******************* *)
+	        
+	        (*Reset internal variables and Outputs*) 
+	        #IO_b_InitFinish                            := FALSE;
+	        #HEAD.ExistTC                               := FALSE;
+	        #HEAD.NotExist                              := FALSE;
+	        #HEAD.Done                                  := FALSE;
+	        #O_b_Done                                   := False;
+	        #HEAD.Error                                 := FALSE;
+	        #O_b_Error                                  := False;
+	        #HEAD.Busy                                  := FALSE;
+	//        #O_b_Busy                                   := False;
+	        #HEAD.SglCmdActive                          := FALSE;
+	        #HEAD.EnhCmdActive                          := FALSE;
+	        #HEAD.QuitCmdActive                         := FALSE;
+	        #HEAD.ReadCmdActive                         := FALSE;
+	        #HEAD.SpecialCmdActive                      := FALSE;
+	        #HEAD.NewData                               := FALSE;
+	        #HEAD.TimeoutActive                         := FALSE;
+	        #HEAD.TimeoutOccurred                       := FALSE;
+	        #HEAD.TransfToHead                          := FALSE;
+	        #HEAD.SendOK                                := FALSE;
+	        #HEAD.Execute                               := FALSE;
+	        #HEAD.ReceiveOK                             := FALSE;
+	        #HEAD.WriteCmdActive                        := FALSE;
+	        #O_b_NoDataCarrier                          := False;
+	        #O_b_Finish                                 := False;
+	        #O_w_AccessCounter                          := 0;
+	        #AccessConter_Int                           := 0;
+	        
+	        //Reset Date for status 16#00 telegrams
+	        #UserData.Date_Status_00.NANOSECOND         := 16#00;
+	        #UserData.Date_Status_00.SECOND             := 0;
+	        #UserData.Date_Status_00.MINUTE             := 0;
+	        #UserData.Date_Status_00.HOUR               := 0;
+	        #UserData.Date_Status_00.WEEKDAY            := 1;
+	        #UserData.Date_Status_00.DAY                := 1;
+	        #UserData.Date_Status_00.MONTH              := 1;
+	        #UserData.Date_Status_00.YEAR               := 1970;
+	        //Reset Date for status 16#05 telegrams
+	        #UserData.Date_Status_05.NANOSECOND         := 16#00;
+	        #UserData.Date_Status_05.SECOND             := 0;
+	        #UserData.Date_Status_05.MINUTE             := 0;
+	        #UserData.Date_Status_05.HOUR               := 0;
+	        #UserData.Date_Status_05.WEEKDAY            := 1;
+	        #UserData.Date_Status_05.DAY                := 1;
+	        #UserData.Date_Status_05.MONTH              := 1;
+	        #UserData.Date_Status_05.YEAR               := 1970;
+	        //Reset Date for Start ReadWrite (Trigger) to Default value
+	        #UserData.Date_Start_Command.NANOSECOND     := 16#00;
+	        #UserData.Date_Start_Command.SECOND         := 0;
+	        #UserData.Date_Start_Command.MINUTE         := 0;
+	        #UserData.Date_Start_Command.HOUR           := 0;
+	        #UserData.Date_Start_Command.WEEKDAY        := 1;
+	        #UserData.Date_Start_Command.DAY            := 1;
+	        #UserData.Date_Start_Command.MONTH          := 1;
+	        #UserData.Date_Start_Command.YEAR           := 1970;
+	        //Reset  Time to T#0s
+	        #UserData.Time_Tag_in_Zone                    := T#0s;
+	        #UserData.Time_Status_00                    := T#0s;
+	        #UserData.Time_Status_05                    := T#0s;
+	        (* Clear data structures; overwrite with 16#00 *)
+	        FILL_BLK(IN := 16#0, COUNT := 31, OUT => #OutData[1]);                         (*internal OutData structure without Control Byte*)
+	        FILL_BLK(IN := 16#0, COUNT := 192, OUT => #UserData.ReadData[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 22, OUT => #UserData.WriteData[0]);              (*WriteData structure with data which should write to the tag*)
+	        FILL_BLK(IN := 16#0, COUNT := 30,  OUT => #UserData.SpecialCommand[0]);        (*Special command data field for tunneling function block*)
+	        
+	        #STATE_INIT                                 := #STATE_INIT + 1;                 (* Go to next state *)
+	        
+	        #Counter_FP := 0;
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_1[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_2[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_3[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_4[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_5[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_6[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_7[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_8[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_9[0]);
+	        FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_10[0]);
+	
+	        
+	    2: (* ****************** Delete internal FIFO Memory / telegrams of IQT1-xx-IO-V1 *************** *)
+	        
+	        (* Set Deletebit *)
+	        #OutData[0]                                 := ((#OutData[0] AND (NOT #MASK_DELETEBIT)) OR ((NOT #OutData[0]) AND #MASK_DELETEBIT));    (* Delete old telegrams in identsystem *)
+	        
+	        #STATE_INIT                                 := #STATE_INIT + 1;                 (* Go to next state *)
+	        
+	    3: (* ******************** Wait for delete bit in INPUTS equals OUTPUTS **************** *)
+	        
+	        IF ((#OutData[0] AND #MASK_DELETEBIT) = (( #InData[0] AND #MASK_DELETEBIT))) THEN       (*Check if the value of the Delete Bit is identically in input and output*)
+	            #STATE_INIT                             := #STATE_INIT + 1;                 (* Go to next state *)
+	        END_IF;
+	        
+	    4: (* ***************** Send Change Tag Command; stop command execution and configure Tag Type *************** *)
+	        
+	        (* Configure Change Tag command in OutData structure *)
+	        #OutData[1]                                 := 16#07;           (*Frame length*)
+	        #OutData[2]                                 := 16#00;           (*Fragmentation counter*)
+	        #OutData[3]                                 := 16#00;           (*Telegram length High Byte*)
+	        #OutData[4]                                 := 16#04;           (*Telegram length Low Byte*)
+	        #OutData[5]                                 := 16#04;           (*Command Code Quit command*)
+	        #OutData[6]                                 := #I_B_TagType;           (*ByteAddress High Byte*)
+	        #OutData[7]                                 := 16#00;           (*ByteAddress Low Byte*)
+	        #OutData[8]                                 := 16#00;           (*Byte Number High Byte*)
+	        #OutData[9]                                 := 16#00;           (*Byte Number Low Byte*)
+	        FILL_BLK(IN := 16#0, COUNT := 22,  OUT => #OutData[10]);
+	        
+	        #HEAD.Busy                                  := TRUE;
+	        #O_b_Busy                                   := True;
+	        #HEAD.Done                                  := FALSE;
+	        #O_b_Done                                   := False;
+	        #HEAD.TimeoutActive                         := TRUE;
+	        #HEAD.SglCmdActive                          := TRUE;
+	        #HEAD.EnhCmdActive                          := FALSE;
+	        #HEAD.Execute                               := TRUE;
+	        #HEAD.TransfToHead                          := TRUE;
+	        
+	        (* Handling of Handshake process for sending a new command *)
+	        (* Check if IQT1-xx-IO-V1 is able to receive a new telegram; 
+	        IQT1-xx-IO-V1 is able to receive new telegrams if the value of the UpdateBit_Master of the Input and Output is different *)
+	        IF ((#OutData[0] AND #MASK_UPDATEBIT_MASTER) <> (#InData[0] AND #MASK_UPDATEBIT_MASTER)) THEN  (* Receiver (IQT1-xx-IO-V1) accepts a new Telegram *)
+	                        (* Invert Updatebit master in order to signalize a new telegram is available *)
+	            #OutData[0]                             := (#OutData[0] AND (NOT #MASK_UPDATEBIT_MASTER)) OR (#InData[0] AND #MASK_UPDATEBIT_MASTER);
+	            #HEAD.SendOK                            := TRUE;
+	        ELSE
+	            #HEAD.SendOK                            := FALSE;  (* Receiver (IQT1-xx-IO-V1) doesnt't accept a new Telegram *)
+	        END_IF;
+	        
+	        (* Send OutData field with Quit command to IQT1-xx-IO-V1 *)
+	        IF #HEAD.SendOK THEN
+	            
+	            #HEAD.TransfToHead                      := FALSE;
+	            #STATE_INIT                             := #STATE_INIT + 1; (* Go to next state *)
+	        END_IF;
+	        
+	    5: (* ******************** Wait for Quit command response ************************ *)
+	        IF #HEAD.ReceiveOK THEN (*If new telegram from IQT1-xx-IO-V1 is available*)
+	            
+	            #HEAD.NewData                           := TRUE;
+	            #O_B_Status                             := #InData[6];          (*Copy received status value to Output variable Status*)
+	            
+	            IF #InData[6] = 16#0 THEN
+	                #HEAD.ExistTC                       := TRUE;
+	                #HEAD.NotExist                      := FALSE;
+	            ELSE    (* Error *)
+	                #HEAD.ExistTC                       := FALSE;
+	                #HEAD.NotExist                      := TRUE;
+	                #HEAD.Error                         := TRUE;
+	                #O_b_Error                          := True;
+	            END_IF;
+	            
+	            #HEAD.Busy                              := FALSE;
+	            #O_b_Busy                               := False;
+	            #HEAD.Done                              := TRUE;
+	            #O_b_Done                               := True;
+	            #O_b_Finish                             := TRUE;
+	            #HEAD.SglCmdActive                      := FALSE;
+	            #HEAD.TimeoutActive                     := FALSE;
+	            #HEAD.Execute                           := FALSE;
+	            #STATE_INIT                             := #STATE_INIT + 1; (* Go to next state *)
+	        END_IF;
+	        
+	    6: (* Initialization finished  *)
+	        IF #HEAD.ExistTC OR #HEAD.NotExist THEN
+	            #IO_b_InitFinish                        := TRUE;
+	            #IO_b_SetRestart                        := FALSE;
+	            #STATE_INIT                             := 0; (* Go to idle state *)
+	        END_IF;
+	END_CASE;
+	
+	(*  ******************************************************************** Command Processing [Communication routine]   ****************************************************************************************************   *)
+	IF #IO_b_InitFinish THEN
+	    
+	    (* ********** Commands ********** *)
+	    IF NOT #HEAD.Execute THEN
+	        
+	        IF (*#RTRIG_Quit.Q OR*)#RTRIG_Read.Q OR #RTRIG_Write.Q OR #RTRIG_SpecialCommand.Q THEN
+	            (* Discard previous #RECORD_DATA.INPUT content, except CONTROL Byte *)
+	            #FragmentCounter_1                      := 16#00;
+	            #FragmentCounter_2                      := 16#00;
+	            #FragmentCounter_3                      := 16#00;
+	            #FragmentCounter_4                      := 16#00;
+	            #FragmentCounter_5                      := 16#00;
+	            #FragmentCounter_6                      := 16#00;
+	            #FragmentCounter_7                      := 16#00;
+	            #FragmentCounter_8                      := 16#00;
+	            #FragmentCounter_9                      := 16#00;
+	            #FragmentCounter_10                     := 16#00;
+	            FILL_BLK(IN := 16#0, COUNT := 192,  OUT => #UserData.ReadData[0]);
+	            #SingleCommandFinished                  := False;
+	            #O_b_NoDataCarrier                      := False;
+	            //Reset Error output with trigger on new command
+	            #HEAD.Error                             := FALSE;
+	            #O_b_Error                              := False;
+	            //Reset Read and Write counter with Trigger on new command
+	            #O_w_AccessCounter                      := 0;
+	            #AccessConter_Int                       := 0;
+	            //Read out Local time with Trigger on new command (no Quit command, but Special command)
+	            #Error_ScanTime                         := RD_LOC_T(#UserData.Date_Start_Command);
+	            //Reset Read and Write time to T#0s
+	            #UserData.Time_Tag_in_Zone                := T#0s;
+	            #UserData.Time_Status_00                := T#0s;
+	            #UserData.Time_Status_05                := T#0s;
+	            
+	            (*  (* ***** Quit ***** *)
+	            IF #RTRIG_Quit.Q THEN
+	                #OutData[1](*#Record_Data.OUTPUT.FrameLength*)          := 16#06;
+	                #OutData[2](*#Record_Data.OUTPUT.FragmentationCounter*) := 16#00;
+	                #OutData[3](*#Record_Data.OUTPUT.TelegramLengthHigh*)   := 16#00;
+	                #OutData[4](*#Record_Data.OUTPUT.TelegramLengthLow*)    := 16#03;
+	                #OutData[5](*#Record_Data.OUTPUT.Command*)              := 16#02; (* Command: QUIT *)
+	                FILL_BLK(IN := 16#0,COUNT := 250,OUT => #OutData[6]);
+	                
+	                #HEAD.QuitCmdActive := True;
+	                #HEAD.EnhCmdActive := FALSE;
+	                #HEAD.TransfToHead := TRUE;
+	                #STATE_CMD := 1;
+	            END_IF;*)
+	            
+	              (* ***** Special Command ***** *)
+	            IF #RTRIG_SpecialCommand.Q THEN
+	                MOVE_BLK(IN := #UserData.SpecialCommand[0],  OUT => #OutData[1],  COUNT := 31);
+	                #HEAD.SpecialCmdActive              := TRUE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := False;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* ***** Single Read 4-Byte Block ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_UID = False (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = FALSE THEN
+	                #OutData[1]                         := 16#0A;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High byte*)
+	                #OutData[4]                         := 16#07;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#10;                                                           (* Command: Single Read 4-Byte Block*)
+	                #OutData[6]                         := WORD_TO_BYTE(SHR(IN := #I_w_ByteAddress AND 16#FF00, N := 8));   (*ByteAddress High Byte*)
+	                #OutData[7]                         := WORD_TO_BYTE(#I_w_ByteAddress);                                  (*ByteAddress Low Byte*)
+	                #OutData[8]                         := INT_TO_BYTE(SHR(IN := #I_i_ByteNumber AND 16#FF00, N := 8));     (*Byte Number High Byte*)
+	                #OutData[9]                         := INT_TO_BYTE(#I_i_ByteNumber);                                    (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0, COUNT := 22,  OUT => #OutData[10]);                                               (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := TRUE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* **** Enhanced Read 4-Byte Block ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_UID = False (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = TRUE THEN
+	                #OutData[1]                         := 16#0A;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High Byte*)
+	                #OutData[4]                         := 16#07;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#19;                                                           (* Command: Enhanced Read 4-Byte Block*)
+	                #OutData[6]                         := WORD_TO_BYTE(SHR(IN := #I_w_ByteAddress AND 16#FF00, N := 8));   (*ByteAddress High Byte*)
+	                #OutData[7]                         := WORD_TO_BYTE(#I_w_ByteAddress);                                  (*ByteAddress Low Byte*)
+	                #OutData[8]                         := INT_TO_BYTE(SHR(IN := #I_i_ByteNumber AND 16#FF00, N := 8));     (*Byte Number High Byte*)
+	                #OutData[9]                         := INT_TO_BYTE(#I_i_ByteNumber);                                    (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0, COUNT := 22, OUT => #OutData[10]);                                                (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := FALSE;
+	                #HEAD.EnhCmdActive                  := True;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* ***** Single Read Fixcode (UID) ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_UID = TRUE (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = FALSE THEN
+	                #OutData[1]                         := 16#06;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High Byte*)
+	                #OutData[4]                         := 16#03;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#01;                                                           (* Command: Single Read Fixcode*)
+	                #OutData[6]                         := 16#00;                                                           (*ByteAddress High Byte*)
+	                #OutData[7]                         := 16#00;                                                           (*ByteAddress Low Byte*)
+	                #OutData[8]                         := 16#00;                                                           (*Byte Number High Byte*)
+	                #OutData[9]                         := 16#00;                                                           (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0, COUNT := 22, OUT => #OutData[10]);                                                (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := TRUE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* ***** Enhanced Read Fixcode (TID) ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_UID = TRUE (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = TRUE THEN
+	                #OutData[1]                         := 16#06;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High Byte*)
+	                #OutData[4]                         := 16#03;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#1D;                                                           (* Command: Enhanced Read Fixcode*)
+	                #OutData[6]                         := 16#00;                                                           (*ByteAddress High Byte*)
+	                #OutData[7]                         := 16#00;                                                           (*ByteAddress Low Byte*)
+	                #OutData[8]                         := 16#00;                                                           (*Byte Number High Byte*)
+	                #OutData[9]                         := 16#00;                                                           (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0, COUNT := 22, OUT => #OutData[10]);                                                (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := FALSE;
+	                #HEAD.EnhCmdActive                  := TRUE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (*
+	            (* **** Single Read UII (EPC/UII) ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_TID = FALSE AND #I_b_EPC = TRUE AND #I_b_SingleEnhanced = FALSE THEN
+	                #OutData[1]                         := 16#06;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High Byte*)
+	                #OutData[4]                         := 16#03;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#D2;                                                           (* Command: Single Read UII*)
+	                #OutData[6]                         := 16#00;                                                           (*ByteAddress High Byte*)
+	                #OutData[7]                         := 16#00;                                                           (*ByteAddress Low Byte*)
+	                #OutData[8]                         := 16#00;                                                           (*Byte Number High Byte*)
+	                #OutData[9]                         := 16#00;                                                           (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0,COUNT := 22,OUT => #OutData[10]);                                                  (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := TRUE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* ***** Enhanced Read UII (EPC/UII) ***** *)
+	            IF #RTRIG_Read.Q = True AND #I_b_UserMemory_TID = FALSE AND #I_b_EPC = TRUE AND #I_b_SingleEnhanced = TRUE THEN
+	                #OutData[1]                         := 16#06;                                                           (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High Byte*)
+	                #OutData[4]                         := 16#03;                                                           (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#D3;                                                           (* Command: Enhanced Read UII*)
+	                #OutData[6]                         := 16#00;                                                           (*ByteAddress High Byte*)
+	                #OutData[7]                         := 16#00;                                                           (*ByteAddress Low Byte*)
+	                #OutData[8]                         := 16#00;                                                           (*Byte Number High Byte*)
+	                #OutData[9]                         := 16#00;                                                           (*Byte Number Low Byte*)
+	                FILL_BLK(IN := 16#0, COUNT := 22,OUT => #OutData[10]);                                                 (*Overwrite unused part of field with 16#00*)
+	                #HEAD.SglCmdActive                  := FALSE;
+	                #HEAD.EnhCmdActive                  := TRUE;
+	                #HEAD.WriteCmdActive                := False;
+	                #HEAD.ReadCmdActive                 := True;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            *)
+	            
+	            (* ***** Single Write 4-Byte Block ***** *)
+	            IF #RTRIG_Write.Q = True AND #I_b_UserMemory_UID = False (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = FALSE THEN
+	                #OutData[1]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#0A;                             (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High byte*)
+	                #OutData[4]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#07;                             (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#40;                                                           (* Command: Single Write 4-Byte Block*)
+	                #OutData[6]                         := WORD_TO_BYTE(SHR(IN := #I_w_ByteAddress AND 16#FF00, N := 8));   (*ByteAddress High Byte*)
+	                #OutData[7]                         := WORD_TO_BYTE(#I_w_ByteAddress);                                  (*ByteAddress Low Byte*)
+	                #OutData[8]                         := INT_TO_BYTE(SHR(IN := #I_i_ByteNumber AND 16#FF00, N := 8));     (*Byte Number High Byte*)
+	                #OutData[9]                         := INT_TO_BYTE(#I_i_ByteNumber);                                    (*Byte Number Low Byte*)
+	                MOVE_BLK(IN := #UserData.WriteData[0],OUT => #OutData[10], COUNT := 22);                                (*Copy WriteData field to output field*)
+	                #HEAD.SglCmdActive                  := TRUE;
+	                #HEAD.WriteCmdActive                := True;
+	                #HEAD.ReadCmdActive                 := FALSE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (* ***** Enhanced Write 4-Byte Block ***** *)
+	            IF #RTRIG_Write.Q = True AND #I_b_UserMemory_UID = False (*AND #I_b_EPC = False*) AND #I_b_SingleEnhanced = TRUE THEN
+	                #OutData[1]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#0A;                             (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High byte*)
+	                #OutData[4]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#07;                             (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#1A;                                                           (* Command: Enhanced Write 4-Byte Block*)
+	                #OutData[6]                         := WORD_TO_BYTE(SHR(IN := #I_w_ByteAddress AND 16#FF00, N := 8));   (*ByteAddress High Byte*)
+	                #OutData[7]                         := WORD_TO_BYTE(#I_w_ByteAddress);                                  (*ByteAddress Low Byte*)
+	                #OutData[8]                         := INT_TO_BYTE(SHR(IN := #I_i_ByteNumber AND 16#FF00, N := 8));     (*Byte Number High Byte*)
+	                #OutData[9]                         := INT_TO_BYTE(#I_i_ByteNumber);                                    (*Byte Number Low Byte*)
+	                MOVE_BLK(IN := #UserData.WriteData[0],OUT => #OutData[10],  COUNT := 22);                              (*Copy WriteData field to output field*)
+	                #HEAD.SglCmdActive                  := FALSE;
+	                #HEAD.WriteCmdActive                := True;
+	                #HEAD.ReadCmdActive                 := FALSE;
+	                #HEAD.EnhCmdActive                  := TRUE;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            
+	            (*
+	            (* **** Single Write EPC/UII ***** *)
+	            IF #RTRIG_Write.Q = True AND #I_b_UserMemory_TID = False AND #I_b_EPC = True AND #I_b_SingleEnhanced = FALSE THEN
+	                #OutData[1]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#07;                            (*Frame Length*)
+	                #OutData[2]                         := 16#00;                                                           (*Fragmentation Counter*)
+	                #OutData[3]                         := 16#00;                                                           (*Telegram Length High byte*)
+	                #OutData[4]                         := INT_TO_BYTE(#I_i_ByteNumber) + 16#04;                            (*Telegram Length Low Byte*)
+	                #OutData[5]                         := 16#CE;                                                           (* Command: Single Write EPC/UII*)
+	                #OutData[6]                         := INT_TO_BYTE(#I_i_ByteNumber);                                    (*Length of EPC Information; 2 Byte PC Word + EPC/UII*)
+	                MOVE_BLK(IN := #UserData.WriteData[0], OUT => #OutData[7],  COUNT := 22);                              (*Copy WriteData field to output field*)
+	                #HEAD.SglCmdActive                  := TRUE;
+	                #HEAD.WriteCmdActive                := True;
+	                #HEAD.ReadCmdActive                 := FALSE;
+	                #HEAD.EnhCmdActive                  := FALSE;
+	                #HEAD.TransfToHead                  := TRUE;
+	                #STATE_CMD                          := 1;
+	            END_IF;
+	            *)
+	            
+	        END_IF;
+	        
+	        IF #RTRIG_Quit.Q THEN
+	            //Reset Error if Quit command triggered
+	            #HEAD.Error                             := FALSE;
+	            #O_b_Error                              := False;
+	            
+	              (* ***** Quit ***** *)
+	            #OutData[1]                             := 16#06;                                                           (*Frame Length*)
+	            #OutData[2]                             := 16#00;                                                           (*Fragmentation Counter*)
+	            #OutData[3]                             := 16#00;                                                           (*Telegram Length High byte*)
+	            #OutData[4]                             := 16#03;                                                           (*Telegram Length Low Byte*)
+	            #OutData[5]                             := 16#02;                                                           (* Command: QUIT *)
+	            FILL_BLK(IN := 16#0, COUNT := 28,  OUT => #OutData[6]);
+	            #HEAD.QuitCmdActive                     := True;
+	            #HEAD.SpecialCmdActive                  := FALSE;
+	            #HEAD.EnhCmdActive                      := FALSE;
+	            #HEAD.TransfToHead                      := TRUE;
+	            #HEAD.WriteCmdActive                    := FALSE;
+	            #HEAD.ReadCmdActive                     := FALSE;
+	            #STATE_CMD                              := 1;
+	        END_IF;
+	    END_IF;
+	    
+	            (* ***** Handle communication and analysis ***** *)
+	            CASE #STATE_CMD OF
+	                    
+	                0: (* ***** Idle state ***** *)
+	                    ;
+	                1:(* ***** Execution ***** *)
+	                    IF #HEAD.TransfToHead THEN
+	                        #HEAD.Busy                  := TRUE;
+	                        #O_b_Busy                   := True;
+	                        #HEAD.Done                  := FALSE;
+	                        #O_b_Done                   := False;
+	                        #O_b_Finish                 := False;
+	                        #HEAD.SendOK                := FALSE;
+	                        #HEAD.ReceiveOK             := FALSE;
+	                        #HEAD.NewData               := FALSE;
+	                        #HEAD.TimeoutActive         := TRUE;
+	                        #HEAD.TimeoutOccurred       := FALSE;
+	                        #HEAD.Execute               := TRUE;
+	                        #O_b_NoDataCarrier          := False;
+	                        #O_b_Finish                 := False;
+	                        
+	                        (* ***** Handshake-WRITE ***** *)
+	                        (* Check if IQT1-xx-IO-V1 is able to receive a new telegram *)
+	                        IF ((#OutData[0] AND #MASK_UPDATEBIT_MASTER) <> (#InData[0] AND #MASK_UPDATEBIT_MASTER)) THEN
+	                            (* Receiver (IQT1-xx-IO-V1) accepts a new Telegram *)
+	                            
+	                            (* Invert Updatebit master in order to signalize a new telegram is available *)
+	                            #OutData[0]             := (#OutData[0] AND (NOT #MASK_UPDATEBIT_MASTER)) OR (#InData[0] AND #MASK_UPDATEBIT_MASTER);
+	                            #HEAD.SendOK            := TRUE;
+	                            
+	                            //Test KReinhardt 2023-06-28
+	                            #Counter_FP             := 0;
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_1[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_2[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_3[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_4[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_5[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_6[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_7[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_8[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_9[0]);
+	                            FILL_BLK(IN := 16#0, COUNT := 32, OUT => #Resp_Telegram_10[0]);
+	                           
+	                        ELSE
+	                            (* Receiver (IQT1-xx-IO-V1) doesnt't accept a new Telegram *)
+	                            #HEAD.SendOK            := FALSE;
+	                        END_IF;
+	                        
+	                            (* Send CMD to identsystem *)
+	                        IF #HEAD.SendOK THEN
+	
+	                            #HEAD.TransfToHead      := FALSE;
+	                            #STATE_CMD              := #STATE_CMD + 1; (* Go to next state *)
+	                        END_IF;
+	                    END_IF;
+	                    
+	                    
+	                2:(* ***** Analyze InData ***** *)
+	                    (* Receive Telegram *)
+	                    IF #HEAD.ReceiveOK THEN //(ReceiveTelegram(ChannelLocal := nChannel) = TRUE ) THEN
+	                        #HEAD.NewData               := TRUE;
+	                        
+	                        (* Data carrier detected *)
+	                        IF #InData[6] = 16#0  OR #InData[6] = 16#B THEN
+	                            #HEAD.Done              := TRUE;
+	                        (* No data carrier detected *)
+	                       // ELSIF #InData[6] = 16#5 THEN
+	                       //     #O_b_NoDataCarrier      := TRUE;
+	                       //     #HEAD.Done              := False;
+	                        END_IF;
+	                        
+	                        //Status 16#00 response during Quit command or Special command -> command successfully finished
+	                        IF #InData[6] = 16#0 AND #HEAD.QuitCmdActive = True THEN
+	                            #HEAD.Done              := TRUE;
+	                            #O_b_Done               := True;
+	                            #O_b_Finish             := True;
+	                            #HEAD.Busy              := False;
+	                            #O_b_Busy               := False;
+	                            #HEAD.NewData           := False;
+	                            #HEAD.QuitCmdActive     := False;
+	                            #HEAD.Execute           := FALSE;
+	                            #HEAD.TimeoutActive     := FALSE;
+	                            #STATE_CMD              := 0; (* Go to idle state *)
+	                            #O_b_NoDataCarrier      := False;
+	                            #O_b_Finish             := True;
+	                        END_IF;
+	                        
+	                        //Status 16#00 response during  Special command -> command successfully finished
+	                        IF #InData[6] = 16#0 AND #HEAD.SpecialCmdActive = True THEN
+	                            #HEAD.Done              := TRUE;
+	                            #O_b_Done               := True;
+	                            #HEAD.Busy              := False;
+	                            #O_b_Busy               := False;
+	                            #HEAD.NewData           := False;
+	                            #HEAD.SpecialCmdActive  := False;
+	                            #HEAD.Execute           := FALSE;
+	                            #HEAD.TimeoutActive     := FALSE;
+	                            #STATE_CMD              := 0; (* Go to idle state *)
+	                            #O_b_NoDataCarrier      := False;
+	                            #O_b_Finish             := True;
+	                        END_IF;
+	                        
+	                        IF #InData[6] = 16#5 AND #HEAD.SpecialCmdActive = True THEN
+	                            #HEAD.Done := TRUE;
+	                            #O_b_Done := True;
+	                            #HEAD.Busy := False;
+	                            #O_b_Busy := False;
+	                            #HEAD.NewData := False;
+	                            #HEAD.SpecialCmdActive := False;
+	                            #HEAD.Execute := FALSE;
+	                            #HEAD.TimeoutActive := FALSE;
+	                            #STATE_CMD := 0; (* Go to idle state *)
+	                            #O_b_NoDataCarrier := TRUE;
+	                            #O_b_Finish := True;
+	                        END_IF;
+	                        
+	                        //Status 16#04 response during Quit command or Special command -> Error
+	                        IF #InData[6] = 16#4 AND #HEAD.QuitCmdActive = True OR #HEAD.SpecialCmdActive = TRUE THEN
+	                            #HEAD.Done              := TRUE;
+	                            #O_b_Done               := True;
+	                            #HEAD.Busy              := False;
+	                            #O_b_Busy               := False;
+	                            #HEAD.NewData           := False;
+	                            #HEAD.QuitCmdActive     := False;
+	                            #HEAD.Execute           := FALSE;
+	                            #HEAD.TimeoutActive     := FALSE;
+	                            #STATE_CMD              := 0; (* Go to idle state *)
+	                            #O_b_NoDataCarrier      := False;
+	                            #O_b_Finish             := True;
+	                        END_IF;
+	                        
+	  
+	                        //Status 16#00 response during write command -> contains EPC information of written tag
+	                        IF #InData[6] = 16#0 AND #HEAD.WriteCmdActive = True THEN
+	                            #STATE_CMD              := 2; (* Go to idle state *)
+	                         //   MOVE_BLK(IN := #InData[7], OUT => #UserData.UID_WrittenTag[0], COUNT := 25);
+	                        END_IF;
+	                    END_IF;
+	            END_CASE;
+	        END_IF;
+	        
+	(* ***** Timeout Control **** *)
+	        #WATCHDOG(IN:=#HEAD.TimeoutActive, PT:= #I_T_Timeout);
+	        
+	        IF #WATCHDOG.Q THEN
+	            #HEAD.TimeoutActive                     := FALSE;
+	            #HEAD.TimeoutOccurred                   := TRUE;
+	            #HEAD.SendOK                            := FALSE;
+	            #HEAD.ReceiveOK                         := FALSE;
+	            #HEAD.SglCmdActive                      := FALSE;
+	            #HEAD.EnhCmdActive                      := FALSE;
+	            #HEAD.Execute                           := FALSE;
+	            #HEAD.TransfToHead                      := FALSE;
+	            #HEAD.Error                             := TRUE;
+	            #O_b_Error                              := True;
+	            #HEAD.Busy                              := FALSE;
+	            #O_b_Busy                               := false;
+	            #HEAD.Done                              := TRUE;
+	            #O_b_Done                               := True;
+	        END_IF;
+	        
+	        #RETVAL_SFC15                               := DPWR_DAT(LADDR := #I_HWIO_Hardware_ID, RECORD := #OutData(*#Record_Data.OUTPUT*));
+	
+	
+END_FUNCTION_BLOCK
+

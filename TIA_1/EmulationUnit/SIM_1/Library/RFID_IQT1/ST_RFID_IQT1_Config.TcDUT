@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="ST_RFID_IQT1_Config" Id="{944d7b6e-005c-415a-9610-e8151b3a9df4}">
+    <Declaration><![CDATA[// Parameters of FB_RFID_IQT1. The folder is not here: it is the sDirectory input.
+TYPE ST_RFID_IQT1_Config :
+STRUCT
+	// The file name is OC's (OC.Data.ProductDataFactory): ID<UniqueId>.data. Change it only
+	// together with the Unity side.
+	sFilePrefix			: STRING(31) := 'ID';
+	sFileExtension		: STRING(31) := '.data';
+
+	// Bytes the PLC may address. The whole product data file by default; set the real
+	// tag's user memory size to get 16#04 beyond it. Capped at the file size.
+	nMemorySize			: UDINT := 32000;
+	nMaxReadLength		: UDINT := 192;		// bytes per Single Read - the P+F block's ReadData holds 192
+
+	tAccessTime			: TIME := T#30MS;	// modelled air time per command, after the tag is known
+
+	nPQI				: BYTE := 16#A0;	// IO-Link port qualifier, byte [32] - PQ valid + DevCom. Shown by the block, not evaluated
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -74,6 +74,21 @@
     <Compile Include="Library\Profidrive_TEL111\ST_Profidrive_Tlg111_ZSW1.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\RFID_IQT1\E_RFID_IQT1_Command.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\RFID_IQT1\E_RFID_IQT1_State.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\RFID_IQT1\E_RFID_IQT1_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\RFID_IQT1\FB_RFID_IQT1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\RFID_IQT1\ST_RFID_IQT1_Config.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -134,6 +149,7 @@
     <Folder Include="FG_Transport" />
     <Folder Include="Library" />
     <Folder Include="Library\Profidrive_TEL111" />
+    <Folder Include="Library\RFID_IQT1" />
     <Folder Include="Sil" />
     <Folder Include="Sil\PLC" />
   </ItemGroup>

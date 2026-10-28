@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="E_RFID_IQT1_Status" Id="{57b48786-dcfd-4faf-8e65-6a0ad06ce761}">
+    <Declaration><![CDATA[// Response status, byte [6] of the first response frame. These three are the only
+// codes the P+F block evaluates, so they are the only ones the model answers with.
+{attribute 'qualified_only'}
+TYPE E_RFID_IQT1_Status :
+(
+	Ok		:= 16#00,	// command executed
+	Error	:= 16#04,	// command rejected: out of range, not modelled, or a tag-file error
+	NoTag	:= 16#05	// no data carrier in front of the head
+) BYTE;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

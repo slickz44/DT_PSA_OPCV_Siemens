@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="E_RFID_IQT1_Command" Id="{b31d7be0-d864-4e27-8495-8b00657de4b1}">
+    <Declaration><![CDATA[// Expert Mode command codes, request byte [5], as the P+F block
+// IQT1-xx-IO-V1_ExpertMode_Basic V2.1 sends them. Not 'strict': the byte on the wire
+// is compared against these as it is, including codes this list does not name.
+{attribute 'qualified_only'}
+TYPE E_RFID_IQT1_Command :
+(
+	SingleReadFixcode	:= 16#01,	// read the UID
+	Quit				:= 16#02,	// stop the running command
+	ChangeTag			:= 16#04,	// set the tag type - the P+F init routine, [6] = tag type
+	SingleRead			:= 16#10,	// read 4-byte blocks, [6..7] address, [8..9] byte count
+	EnhancedRead		:= 16#19,	// continuous variants - not modelled, answered 16#04
+	EnhancedWrite		:= 16#1A,
+	EnhancedReadFixcode	:= 16#1D,
+	SingleWrite			:= 16#40	// write 4-byte blocks, data in [10..31], at most 22 bytes
+) BYTE;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

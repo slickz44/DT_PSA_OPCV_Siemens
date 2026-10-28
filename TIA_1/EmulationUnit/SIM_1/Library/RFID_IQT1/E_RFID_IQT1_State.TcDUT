@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.19">
+  <DUT Name="E_RFID_IQT1_State" Id="{3dbd81a9-002b-4255-83f2-aee79849c5d2}">
+    <Declaration><![CDATA[// Internal state of FB_RFID_IQT1. Not on the wire.
+{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_RFID_IQT1_State :
+(
+	Init		:= 0,	// first cycle
+	Idle,				// ready for a request
+	CreateDir,			// make sure the product data folder exists, once per folder
+	LoadTag,			// read the tag's product data file
+	Execute,			// air time, then build the response
+	SaveTag,			// write the product data file back
+	Respond				// hand the prepared frames to the PLC, one per acknowledgement
+) INT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
